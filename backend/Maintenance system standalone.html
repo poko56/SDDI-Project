@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบแจ้งซ่อม | Maintenance System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:    #0a0c10;
+  --ink2:   #111520;
+  --ink3:   #181d2a;
+  --ink4:   #1f2636;
+  --wire:   rgba(255,255,255,0.06);
+  --wire2:  rgba(255,255,255,0.11);
+  --chalk:  #dde3f0;
+  --chalk2: #8492a6;
+  --chalk3: #4a5568;
+  --spark:  #00d4ff;
+  --spark2: #0099cc;
+  --spark-g:rgba(0,212,255,0.12);
+  --green:  #00e5a0;
+  --green-g:rgba(0,229,160,0.12);
+  --amber:  #ffb800;
+  --amber-g:rgba(255,184,0,0.12);
+  --red:    #ff4757;
+  --red-g:  rgba(255,71,87,0.12);
+  --violet: #a855f7;
+  --violet-g:rgba(168,85,247,0.12);
+  --r: 8px; --r2: 12px; --r3: 16px;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Noto Sans Thai', sans-serif;
+  --sh: 0 4px 24px rgba(0,0,0,0.5);
+  --sh2: 0 8px 40px rgba(0,0,0,0.6);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--ink);color:var(--chalk);font-size:14px;line-height:1.6;min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--ink2)}
+::-webkit-scrollbar-thumb{background:var(--ink4);border-radius:4px}
+button{cursor:pointer;font-family:var(--sans);border:none;background:none}
+input,select,textarea{font-family:var(--sans)}
+a{text-decoration:none;color:inherit}
+
+/* ─── LAYOUT ─── */
+.shell{display:flex;min-height:100vh}
+.sidebar{width:248px;background:var(--ink2);border-right:1px solid var(--wire);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:200;transition:transform .3s}
+.main{margin-left:248px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{height:56px;background:var(--ink2);border-bottom:1px solid var(--wire);display:flex;align-items:center;padding:0 1.5rem;gap:1rem;position:sticky;top:0;z-index:100}
+.page{padding:1.5rem;flex:1}
+
+/* ─── SIDEBAR ─── */
+.sb-brand{padding:1.125rem 1.125rem;border-bottom:1px solid var(--wire);display:flex;align-items:center;gap:.75rem;flex-shrink:0}
+.sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(--spark),var(--spark2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;box-shadow:0 0 20px rgba(0,212,255,0.3)}
+.sb-name{font-size:.88rem;font-weight:700;line-height:1.2;color:var(--chalk)}
+.sb-name small{display:block;font-size:.65rem;font-weight:400;color:var(--chalk3)}
+.sb-nav{padding:.75rem 0;flex:1}
+.sb-sec{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--chalk3);padding:.625rem 1.125rem .25rem;margin-top:.5rem}
+.sb-link{display:flex;align-items:center;gap:.7rem;padding:.575rem 1.125rem;font-size:.83rem;color:var(--chalk2);cursor:pointer;border-left:2px solid transparent;transition:all .15s;position:relative}
+.sb-link:hover{background:rgba(255,255,255,0.04);color:var(--chalk);border-left-color:var(--wire2)}
+.sb-link.on{background:rgba(0,212,255,0.08);color:var(--spark);border-left-color:var(--spark)}
+.sb-link .ico{font-size:.95rem;width:17px;text-align:center;flex-shrink:0}
+.sb-link .cnt{margin-left:auto;background:var(--red);color:#fff;font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:9px;font-family:var(--mono)}
+.sb-foot{padding:.875rem 1.125rem;border-top:1px solid var(--wire);display:flex;align-items:center;gap:.625rem;flex-shrink:0}
+.sb-av{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--spark2),var(--violet));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0}
+.sb-uname{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-urole{font-size:.65rem;color:var(--chalk3)}
+.sb-out{color:var(--chalk3);font-size:.9rem;padding:3px;border-radius:4px;transition:color .15s;margin-left:auto}
+.sb-out:hover{color:var(--red)}
+
+/* ─── TOPBAR ─── */
+.tb-title{font-size:.95rem;font-weight:700;flex:1}
+.tb-actions{display:flex;align-items:center;gap:.5rem}
+.icon-btn{width:34px;height:34px;background:var(--ink3);border:1px solid var(--wire);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem;color:var(--chalk2);cursor:pointer;transition:all .15s;position:relative}
+.icon-btn:hover{border-color:var(--wire2);color:var(--chalk)}
+.badge-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;background:var(--red);border-radius:50%;border:2px solid var(--ink2)}
+.user-chip{display:flex;align-items:center;gap:.5rem;padding:.3rem .625rem;background:var(--ink3);border:1px solid var(--wire);border-radius:8px;font-size:.75rem}
+
+/* ─── CARDS / STATS ─── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.5rem}
+.scard{background:var(--ink2);border:1px solid var(--wire);border-radius:var(--r3);padding:1.125rem 1.25rem;position:relative;overflow:hidden;transition:border-color .2s,transform .15s}
+.scard:hover{border-color:var(--wire2);transform:translateY(-1px)}
+.scard-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem}
+.scard-ico{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.scard-badge{font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:5px;font-family:var(--mono)}
+.scard-val{font-size:2rem;font-weight:900;line-height:1;font-family:var(--mono);letter-spacing:-.03em}
+.scard-lbl{font-size:.73rem;color:var(--chalk2);margin-top:4px}
+.scard-bar{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 var(--r3) var(--r3)}
+.scard-glow{position:absolute;bottom:0;left:-20%;width:60%;height:80%;opacity:.06;border-radius:50%;filter:blur(20px);pointer-events:none}
+
+/* color themes */
+.c-blue   {--c:var(--spark);--cg:var(--spark-g)}
+.c-green  {--c:var(--green);--cg:var(--green-g)}
+.c-amber  {--c:var(--amber);--cg:var(--amber-g)}
+.c-red    {--c:var(--red);  --cg:var(--red-g)}
+.c-violet {--c:var(--violet);--cg:var(--violet-g)}
+.scard-ico{background:var(--cg);color:var(--c)}
+.scard-val{color:var(--c)}
+.scard-bar,.scard-glow{background:var(--c)}
+.scard-badge{background:var(--cg);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 30%,transparent)}
+
+/* ─── GENERIC CARD ─── */
+.card{background:var(--ink2);border:1px solid var(--wire);border-radius:var(--r3)}
+.card-h{padding:.875rem 1.25rem;border-bottom:1px solid var(--wire);display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.card-t{font-size:.85rem;font-weight:700;display:flex;align-items:center;gap:.5rem}
+.card-b{padding:1.25rem}
+.mb{margin-bottom:1.25rem}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .875rem;border-radius:7px;font-size:.78rem;font-weight:600;transition:all .15s;white-space:nowrap;border:1px solid transparent}
+.btn-primary{background:var(--spark);color:#000;border-color:var(--spark)}
+.btn-primary:hover{background:var(--spark2);border-color:var(--spark2);box-shadow:0 0 16px rgba(0,212,255,0.35)}
+.btn-ghost{background:transparent;color:var(--chalk2);border-color:var(--wire)}
+.btn-ghost:hover{background:var(--ink3);color:var(--chalk);border-color:var(--wire2)}
+.btn-success{background:var(--green);color:#000;border-color:var(--green)}
+.btn-success:hover{box-shadow:0 0 16px rgba(0,229,160,0.35)}
+.btn-amber{background:var(--amber);color:#000;border-color:var(--amber)}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-sm{padding:.28rem .625rem;font-size:.72rem;border-radius:6px}
+.btn-lg{padding:.65rem 1.5rem;font-size:.9rem}
+.btn-block{width:100%;justify-content:center}
+
+/* ─── FORM ─── */
+.fg{margin-bottom:.875rem}
+.fl{display:block;font-size:.75rem;font-weight:600;color:var(--chalk2);margin-bottom:.3rem;letter-spacing:.02em}
+.fl .req{color:var(--red)}
+.fc{width:100%;padding:.525rem .75rem;background:var(--ink3);border:1px solid var(--wire);border-radius:7px;color:var(--chalk);font-size:.85rem;transition:border-color .15s,box-shadow .15s;appearance:none}
+.fc:focus{outline:none;border-color:var(--spark);box-shadow:0 0 0 3px rgba(0,212,255,0.12)}
+.fc::placeholder{color:var(--chalk3)}
+select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%238492a6' d='M5 7L1 3h8z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;padding-right:2rem}
+select.fc option{background:var(--ink2)}
+textarea.fc{resize:vertical;min-height:90px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:.875rem}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.875rem}
+.igrp{display:flex}
+.igrp .fc{border-radius:7px 0 0 7px}
+.igrp .btn{border-radius:0 7px 7px 0;flex-shrink:0}
+
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:20px;font-size:.68rem;font-weight:700;white-space:nowrap;font-family:var(--mono)}
+.b-blue  {background:var(--spark-g); color:var(--spark); border:1px solid rgba(0,212,255,.2)}
+.b-green {background:var(--green-g); color:var(--green); border:1px solid rgba(0,229,160,.2)}
+.b-amber {background:var(--amber-g); color:var(--amber); border:1px solid rgba(255,184,0,.2)}
+.b-red   {background:var(--red-g);   color:var(--red);   border:1px solid rgba(255,71,87,.2)}
+.b-violet{background:var(--violet-g);color:var(--violet);border:1px solid rgba(168,85,247,.2)}
+.b-gray  {background:rgba(255,255,255,.05);color:var(--chalk2);border:1px solid var(--wire)}
+
+/* ─── TABLE ─── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{padding:.55rem 1rem;font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--chalk3);border-bottom:1px solid var(--wire);text-align:left;white-space:nowrap}
+td{padding:.7rem 1rem;border-bottom:1px solid var(--wire);font-size:.8rem;vertical-align:middle}
+tbody tr:hover{background:rgba(255,255,255,0.02)}
+tbody tr:last-child td{border-bottom:none}
+.tid{font-family:var(--mono);font-size:.72rem;color:var(--spark);background:var(--spark-g);padding:2px 6px;border-radius:4px;letter-spacing:.03em}
+
+/* ─── ALERT ─── */
+.alert{padding:.7rem 1rem;border-radius:7px;font-size:.8rem;display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.875rem}
+.al-danger {background:var(--red-g);  color:var(--red);   border:1px solid rgba(255,71,87,.2)}
+.al-success{background:var(--green-g);color:var(--green); border:1px solid rgba(0,229,160,.2)}
+.al-warn   {background:var(--amber-g);color:var(--amber); border:1px solid rgba(255,184,0,.2)}
+.al-info   {background:var(--spark-g);color:var(--spark); border:1px solid rgba(0,212,255,.2)}
+
+/* ─── MODAL ─── */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(6px);animation:fadeIn .15s}
+.modal{background:var(--ink2);border:1px solid var(--wire2);border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--sh2);animation:slideUp .2s cubic-bezier(.4,0,.2,1)}
+.modal-lg{max-width:680px}
+.mh{padding:1.125rem 1.25rem;border-bottom:1px solid var(--wire);display:flex;align-items:center;justify-content:space-between}
+.mt{font-size:.9rem;font-weight:700}
+.mx{width:28px;height:28px;background:var(--ink3);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--chalk2);font-size:.9rem;transition:all .15s}
+.mx:hover{background:var(--red-g);color:var(--red)}
+.mb2{padding:1.25rem}
+.mf{padding:.875rem 1.25rem;border-top:1px solid var(--wire);display:flex;gap:.5rem;justify-content:flex-end}
+
+/* ─── TOAST ─── */
+#toasts{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;max-width:320px}
+.toast{background:var(--ink3);border:1px solid var(--wire2);border-radius:10px;padding:.7rem 1rem;font-size:.8rem;display:flex;gap:.5rem;align-items:flex-start;box-shadow:var(--sh2);animation:slideInR .25s cubic-bezier(.4,0,.2,1)}
+.toast.t-ok   {border-color:rgba(0,229,160,.3);background:rgba(0,229,160,.08)}
+.toast.t-err  {border-color:rgba(255,71,87,.3); background:rgba(255,71,87,.08)}
+.toast.t-warn {border-color:rgba(255,184,0,.3); background:rgba(255,184,0,.08)}
+
+/* ─── MISC ─── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem}
+.flex{display:flex}.ic{align-items:center}.jb{justify-content:space-between}.gap1{gap:.5rem}.gap2{gap:1rem}
+.text-muted{color:var(--chalk2);font-size:.78rem}
+.text-xs{font-size:.7rem}.text-sm{font-size:.8rem}
+.mono{font-family:var(--mono)}
+.hidden{display:none!important}
+.divider{height:1px;background:var(--wire);margin:1rem 0}
+.mt1{margin-top:.5rem}.mt2{margin-top:1rem}.mb1{margin-bottom:.5rem}.mb2{margin-bottom:1rem}
+.w100{width:100%}
+.progress{background:var(--ink3);border-radius:4px;height:5px;overflow:hidden}
+.pbar{height:100%;border-radius:4px;transition:width .5s ease}
+.empty{text-align:center;padding:3.5rem 2rem;color:var(--chalk3)}
+.empty .ei{font-size:2.5rem;margin-bottom:.75rem;opacity:.4}
+
+/* ─── URGENCY PICKER ─── */
+.u-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.ucard{padding:.875rem 1rem;border:1px solid var(--wire);border-radius:var(--r2);cursor:pointer;transition:all .15s}
+.ucard:hover{border-color:var(--wire2);background:var(--ink3)}
+.ucard.sel{background:var(--spark-g);border-color:var(--spark)}
+.ucard.sel.u-red  {background:var(--red-g);  border-color:var(--red)}
+.ucard.sel.u-amber{background:var(--amber-g);border-color:var(--amber)}
+.ucard.sel.u-green{background:var(--green-g);border-color:var(--green)}
+.uc-t{font-weight:700;font-size:.83rem;margin-bottom:2px}
+.uc-d{font-size:.7rem;color:var(--chalk2)}
+.u-red   .uc-t{color:var(--red)}
+.u-amber .uc-t{color:var(--amber)}
+.u-green .uc-t{color:var(--green)}
+.u-gray  .uc-t{color:var(--chalk2)}
+
+/* ─── TIMELINE ─── */
+.tl{display:flex;align-items:flex-start}
+.tl-step{display:flex;align-items:center;flex:1}
+.tl-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;border:2px solid var(--wire);background:var(--ink3);color:var(--chalk3);transition:all .2s}
+.tl-dot.done{background:var(--green);border-color:var(--green);color:#000}
+.tl-dot.curr{background:var(--spark);border-color:var(--spark);color:#000;box-shadow:0 0 0 4px rgba(0,212,255,.2)}
+.tl-info{padding:0 5px}
+.tl-lbl{font-size:.62rem;text-align:center;max-width:65px;line-height:1.3}
+.tl-lbl.done{color:var(--green)}.tl-lbl.curr{color:var(--spark);font-weight:700}
+.tl-line{flex:1;height:2px;background:var(--wire);min-width:16px;transition:background .3s}
+.tl-line.done{background:var(--green)}
+
+/* ─── STARS ─── */
+.stars{display:flex;gap:3px}
+.star{font-size:1.4rem;color:var(--chalk3);cursor:pointer;transition:color .1s;line-height:1}
+.star.on,.star:hover{color:var(--amber)}
+.sg{margin-bottom:.75rem}
+.sg-l{font-size:.75rem;color:var(--chalk2);margin-bottom:.25rem;font-weight:600}
+
+/* ─── BAR CHART ─── */
+.barchart{display:flex;flex-direction:column;gap:.75rem}
+.brow{display:grid;grid-template-columns:120px 1fr 44px;align-items:center;gap:.75rem}
+.bl{font-size:.75rem;color:var(--chalk2);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt{background:var(--ink3);border-radius:4px;height:7px}
+.bf{height:100%;border-radius:4px;transition:width .6s ease}
+.bv{font-size:.72rem;color:var(--chalk2);font-family:var(--mono);text-align:right}
+
+/* ─── TRACK BOX ─── */
+.track-box{background:linear-gradient(135deg,var(--ink2),var(--ink3));border:1px solid var(--wire2);border-radius:var(--r3);padding:1.5rem;text-align:center}
+.track-id{font-family:var(--mono);font-size:1.75rem;font-weight:700;color:var(--spark);letter-spacing:4px;text-shadow:0 0 20px rgba(0,212,255,.4)}
+
+/* ─── NOTIFICATIONS PANEL ─── */
+.notif-panel{position:fixed;top:56px;right:0;width:340px;max-height:calc(100vh - 56px);background:var(--ink2);border-left:1px solid var(--wire);overflow-y:auto;z-index:150;box-shadow:var(--sh2);animation:slideInR .2s cubic-bezier(.4,0,.2,1)}
+.np-h{padding:.875rem 1rem;border-bottom:1px solid var(--wire);display:flex;justify-content:space-between;align-items:center}
+.ni{padding:.875rem 1rem;border-bottom:1px solid var(--wire);cursor:pointer;display:flex;gap:.625rem;transition:background .12s}
+.ni:hover{background:rgba(255,255,255,.03)}
+.ni.unread{background:rgba(0,212,255,.05)}
+.ni-dot{width:7px;height:7px;border-radius:50%;background:var(--spark);margin-top:5px;flex-shrink:0}
+.ni-t{font-size:.78rem;font-weight:700;margin-bottom:1px}
+.ni-m{font-size:.73rem;color:var(--chalk2);line-height:1.4}
+.ni-tm{font-size:.65rem;color:var(--chalk3);margin-top:3px}
+
+/* ─── AUTH ─── */
+.auth-shell{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:var(--ink)}
+.auth-left{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem;background:linear-gradient(160deg,#0a0c10 0%,#0d1f35 50%,#080d16 100%);position:relative;overflow:hidden}
+.auth-left::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 35% 45%,rgba(0,212,255,.1) 0%,transparent 55%),radial-gradient(circle at 72% 68%,rgba(168,85,247,.07) 0%,transparent 45%)}
+.auth-grid{position:absolute;inset:0;opacity:.04;background-image:linear-gradient(rgba(255,255,255,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.4) 1px,transparent 1px);background-size:48px 48px}
+.auth-left-content{position:relative;z-index:1;text-align:center;max-width:380px}
+.auth-icon{font-size:4.5rem;margin-bottom:1.5rem;filter:drop-shadow(0 0 30px rgba(0,212,255,.5));animation:float 3s ease-in-out infinite}
+.auth-h1{font-size:2rem;font-weight:900;color:#fff;line-height:1.2;margin-bottom:.5rem}
+.auth-sub{color:rgba(255,255,255,.45);font-size:.88rem;line-height:1.6;margin-bottom:2.5rem}
+.auth-feat{display:flex;flex-direction:column;gap:.875rem;text-align:left}
+.af{display:flex;align-items:center;gap:.75rem;color:rgba(255,255,255,.65);font-size:.83rem}
+.af-i{width:30px;height:30px;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.25);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.auth-right{display:flex;align-items:center;justify-content:center;padding:2.5rem;background:var(--ink2)}
+.auth-card{width:100%;max-width:420px}
+.auth-logo{display:flex;align-items:center;gap:.75rem;margin-bottom:2rem}
+.auth-logo .ico{font-size:1.8rem}
+.auth-logo .nm{font-size:1.15rem;font-weight:800}
+.auth-logo .sub{color:var(--chalk3);font-size:.72rem;display:block}
+.auth-tabs{display:flex;border-bottom:1px solid var(--wire);margin-bottom:1.75rem}
+.atab{flex:1;padding:.6rem;text-align:center;font-size:.83rem;font-weight:600;color:var(--chalk3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.atab.on{color:var(--spark);border-bottom-color:var(--spark)}
+.auth-hl{font-size:1.5rem;font-weight:800;margin-bottom:.375rem}
+.auth-hlsub{color:var(--chalk2);font-size:.83rem;margin-bottom:1.75rem}
+
+/* ─── UPLOAD ─── */
+.upload-zone{border:2px dashed var(--wire);border-radius:var(--r2);padding:1.5rem;text-align:center;cursor:pointer;transition:all .15s;color:var(--chalk2);font-size:.8rem}
+.upload-zone:hover{border-color:var(--spark);color:var(--chalk)}
+
+/* demo accounts panel */
+.demo-panel{margin-top:1.25rem;padding:.875rem 1rem;background:var(--ink3);border:1px solid var(--wire);border-radius:var(--r2)}
+.demo-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--chalk3);margin-bottom:.5rem}
+.demo-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--wire)}
+.demo-row:last-child{border:none}
+.demo-label{font-size:.73rem;color:var(--chalk2)}
+.demo-btn{font-size:.65rem;padding:2px 8px;background:var(--ink4);border:1px solid var(--wire);border-radius:4px;color:var(--chalk2);cursor:pointer;transition:all .12s;font-family:var(--sans)}
+.demo-btn:hover{background:var(--spark-g);color:var(--spark);border-color:rgba(0,212,255,.3)}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes slideInR{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.spinner{width:22px;height:22px;border:3px solid var(--wire);border-top-color:var(--spark);border-radius:50%;animation:spin .7s linear infinite}
+.loading-state{display:flex;align-items:center;justify-content:center;gap:.75rem;padding:4rem;color:var(--chalk2);flex-direction:column}
+
+/* ─── CATEGORY PICKER ─── */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.625rem}
+.catcard{padding:.875rem .75rem;border:1px solid var(--wire);border-radius:var(--r2);cursor:pointer;text-align:center;transition:all .15s}
+.catcard:hover{border-color:var(--wire2);background:var(--ink3)}
+.catcard.sel{border-color:var(--spark);background:var(--spark-g)}
+.catcard .cc-i{font-size:1.6rem;margin-bottom:.375rem}
+.catcard .cc-t{font-size:.73rem;font-weight:600}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:900px){.auth-shell{grid-template-columns:1fr}.auth-left{display:none}.main{margin-left:0}.sidebar{transform:translateX(-100%)}.sidebar.open{transform:none}.g2,.g3{grid-template-columns:1fr}.frow,.frow3{grid-template-columns:1fr}}
+@media(max-width:600px){.stats-grid{grid-template-columns:1fr 1fr}.page{padding:1rem}}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+<div id="toasts"></div>
+
+<script>
+/* ═══════════════════════════════════════
+   MOCK DATA
+═══════════════════════════════════════ */
+const MOCK = {
+  users: [
+    {id:1,student_id:'ADMIN001',name:'ผู้ดูแลระบบ',email:'admin@school.ac.th',password:'admin1234',role:'admin',department:'ฝ่ายเทคโนโลยี',phone:'081-000-0001',is_active:1,last_login:daysAgo(0)},
+    {id:2,student_id:'68030282',name:'นายศุภโชค หอมสมบัติ',email:'supachok@school.ac.th',password:'manager1234',role:'manager',department:'วิศวกรรมศาสตร์',phone:'081-000-0002',is_active:1,last_login:daysAgo(1)},
+    {id:3,student_id:'68030263',name:'นายวสุรัชต์ สมเด็จ',email:'wasurat@school.ac.th',password:'tech1234',role:'technician',department:'ช่างไฟฟ้า',phone:'081-000-0003',is_active:1,last_login:daysAgo(0)},
+    {id:4,student_id:'68030265',name:'นายวัฒนพงศ์ พรหมภิราม',email:'wattanapong@school.ac.th',password:'tech1234',role:'technician',department:'ช่างประปา',phone:'081-000-0004',is_active:1,last_login:daysAgo(2)},
+    {id:5,student_id:'68030258',name:'นางสาววรัทยา รอดเมล์',email:'warataya@school.ac.th',password:'user1234',role:'user',department:'บริหารธุรกิจ',phone:'081-000-0005',is_active:1,last_login:daysAgo(0)},
+    {id:6,student_id:'68030262',name:'นายวศิน แก้วมรกต',email:'wasin@school.ac.th',password:'user1234',role:'user',department:'คอมพิวเตอร์',phone:'081-000-0006',is_active:1,last_login:daysAgo(3)},
+    {id:7,student_id:'68030271',name:'นายวีระภัทร อ่วมเกษม',email:'weeraphath@school.ac.th',password:'user1234',role:'user',department:'อิเล็กทรอนิกส์',phone:'081-000-0007',is_active:0,last_login:daysAgo(14)},
+    {id:8,student_id:'68030288',name:'นายสรวิชญ์ สิทธิรักษ์',email:'sorawit@school.ac.th',password:'user1234',role:'user',department:'เทคโนโลยีสารสนเทศ',phone:'081-000-0008',is_active:1,last_login:daysAgo(5)},
+  ],
+  requests: [
+    {id:1,tracking_id:'TRK-2568-001',requester_id:5,category:'ไฟฟ้า',location:'อาคาร A ชั้น 1 ห้อง 101',description:'หลอดไฟในห้อง 101 ดับหมดทั้งห้อง ไม่สามารถเรียนได้ ต้องการแก้ไขด่วน',urgency:'เร่งด่วน',status:'เสร็จสมบูรณ์',tech_id:3,created_at:daysAgo(7),assigned_at:daysAgo(6),completed_at:daysAgo(5),repair_detail:'เปลี่ยนหลอดไฟ LED 4 ดวง ตรวจสวิตช์เรียบร้อย',sla_deadline:daysAgo(6)},
+    {id:2,tracking_id:'TRK-2568-002',requester_id:6,category:'เครื่องปรับอากาศ',location:'อาคาร B ชั้น 1 ห้องปฏิบัติการ 2',description:'แอร์ห้องปฏิบัติการ 2 ไม่เย็น มีเสียงดังผิดปกติ อาจาไม่สะดวกต่อการเรียน',urgency:'ปกติ',status:'กำลังดำเนินการ',tech_id:4,created_at:daysAgo(3),assigned_at:daysAgo(2),completed_at:null,repair_detail:null,sla_deadline:isoDate(new Date(Date.now()+86400000))},
+    {id:3,tracking_id:'TRK-2568-003',requester_id:7,category:'ประปา',location:'อาคาร C ชั้น 1 ห้องน้ำ',description:'ก๊อกน้ำห้องน้ำชั้น 1 รั่ว น้ำไหลตลอดเวลา สิ้นเปลืองน้ำมาก',urgency:'เร่งด่วน',status:'รอดำเนินการ',tech_id:null,created_at:daysAgo(1),assigned_at:null,completed_at:null,repair_detail:null,sla_deadline:isoDate(new Date(Date.now()+86400000))},
+    {id:4,tracking_id:'TRK-2568-004',requester_id:8,category:'อุปกรณ์อิเล็กทรอนิกส์',location:'อาคาร B ชั้น 2 ห้องประชุม',description:'โปรเจคเตอร์ห้องประชุมเปิดไม่ติด ไฟ Power กะพริบ ต้องใช้ในการประชุมสำคัญ',urgency:'ปกติ',status:'รอตรวจสอบ',tech_id:3,created_at:daysAgo(5),assigned_at:daysAgo(4),completed_at:null,repair_detail:'ตรวจสอบแล้วอาจต้องเปลี่ยนหลอด รอยืนยันงบประมาณ',sla_deadline:daysAgo(2)},
+    {id:5,tracking_id:'TRK-2568-005',requester_id:5,category:'โครงสร้าง',location:'อาคาร C ชั้น 1 สำนักงาน',description:'ประตูสำนักงานบานพับหัก ปิดไม่ได้ มีผลต่อความปลอดภัย',urgency:'ไม่เร่งด่วน',status:'เสร็จสมบูรณ์',tech_id:3,created_at:daysAgo(14),assigned_at:daysAgo(12),completed_at:daysAgo(10),repair_detail:'เปลี่ยนบานพับใหม่ 2 ตัว ปรับระดับเรียบร้อย',sla_deadline:daysAgo(7)},
+    {id:6,tracking_id:'TRK-2568-006',requester_id:6,category:'ไฟฟ้า',location:'อาคาร A ชั้น 2 ห้อง 201',description:'ปลั๊กไฟมีประกายไฟ ใช้งานไม่ได้ อาจเกิดอันตราย',urgency:'ฉุกเฉิน',status:'เสร็จสมบูรณ์',tech_id:3,created_at:daysAgo(10),assigned_at:daysAgo(10),completed_at:daysAgo(9),repair_detail:'เปลี่ยนเต้ารับใหม่ ตรวจสายไฟปลอดภัย',sla_deadline:daysAgo(10)},
+  ],
+  materials: [
+    {id:1,code:'MAT001',name:'หลอดไฟ LED 18W',category:'ไฟฟ้า',brand:'Philips',quantity:45,unit:'หลอด',unit_price:120,reorder_point:10},
+    {id:2,code:'MAT002',name:'สายไฟ VCT 2x1.5',category:'ไฟฟ้า',brand:'Thai Wire',quantity:180,unit:'เมตร',unit_price:25,reorder_point:30},
+    {id:3,code:'MAT003',name:'เบรกเกอร์ 20A',category:'ไฟฟ้า',brand:'Siemens',quantity:18,unit:'อัน',unit_price:350,reorder_point:5},
+    {id:4,code:'MAT004',name:'เต้ารับ 3 ขา',category:'ไฟฟ้า',brand:'Panasonic',quantity:3,unit:'อัน',unit_price:85,reorder_point:15},
+    {id:5,code:'MAT005',name:'ก๊อกน้ำมิกเซอร์',category:'ประปา',brand:'American Standard',quantity:12,unit:'อัน',unit_price:580,reorder_point:3},
+    {id:6,code:'MAT006',name:'ท่อ PVC 1/2"',category:'ประปา',brand:'SCG',quantity:90,unit:'เมตร',unit_price:35,reorder_point:20},
+    {id:7,code:'MAT007',name:'ปูนซ่อมรอยร้าว',category:'โครงสร้าง',brand:'TPI',quantity:4,unit:'ถุง',unit_price:180,reorder_point:5},
+    {id:8,code:'MAT008',name:'สีทาผนัง (ขาว)',category:'โครงสร้าง',brand:'TOA',quantity:15,unit:'ถัง',unit_price:420,reorder_point:3},
+    {id:9,code:'MAT009',name:'น้ำยาล้างแอร์',category:'เครื่องปรับอากาศ',brand:null,quantity:2,unit:'กระป๋อง',unit_price:95,reorder_point:5},
+    {id:10,code:'MAT010',name:'ฟิลเตอร์แอร์',category:'เครื่องปรับอากาศ',brand:'Carrier',quantity:30,unit:'แผ่น',unit_price:150,reorder_point:8},
+  ],
+  evaluations: [
+    {id:1,request_id:1,quality_score:5,speed_score:4,service_score:5,avg_score:4.67,comment:'ช่างซ่อมรวดเร็วมากครับ ผลงานเรียบร้อยดี'},
+    {id:2,request_id:5,quality_score:4,speed_score:4,service_score:5,avg_score:4.33,comment:'พอใจมากครับ ทำงานสะอาด'},
+    {id:3,request_id:6,quality_score:5,speed_score:5,service_score:5,avg_score:5.0,comment:'ดีเยี่ยม รวดเร็วปลอดภัย'},
+  ],
+  notifications: [
+    {id:1,title:'งานซ่อมเสร็จแล้ว',message:'งาน TRK-2568-001 เสร็จสมบูรณ์แล้ว กรุณาประเมินผล',type:'success',is_read:0,ref_request_id:1,created_at:daysAgo(5),user_id:5},
+    {id:2,title:'งานใหม่ถูกมอบหมาย',message:'มอบหมายงาน TRK-2568-002 ให้คุณแล้ว',type:'info',is_read:1,ref_request_id:2,created_at:daysAgo(2),user_id:3},
+    {id:3,title:'มีการแจ้งซ่อมใหม่',message:'TRK-2568-003 ประปา เร่งด่วน รอมอบหมาย',type:'info',is_read:0,ref_request_id:3,created_at:daysAgo(1),user_id:2},
+  ],
+  nextReqId: 7,
+  nextMatId: 11,
+};
+
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString();}
+function isoDate(d){return d.toISOString();}
+
+/* ═══════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════ */
+let APP={user:null,page:null,notifOpen:false};
+
+/* ═══════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════ */
+function fmtDate(d,short=false){
+  if(!d)return'–';
+  const dt=new Date(d);
+  if(short)return dt.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
+  return dt.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function timeAgo(d){
+  if(!d)return'ยังไม่เคย';
+  const m=Math.floor((Date.now()-new Date(d))/60000);
+  if(m<1)return'เมื่อกี้';if(m<60)return`${m} นาทีที่แล้ว`;
+  const h=Math.floor(m/60);if(h<24)return`${h} ชั่วโมงที่แล้ว`;
+  return`${Math.floor(h/24)} วันที่แล้ว`;
+}
+function sBadge(s){
+  const m={'รอดำเนินการ':['b-amber','⏳'],'กำลังดำเนินการ':['b-blue','⚙️'],'รอตรวจสอบ':['b-violet','🔍'],'เสร็จสมบูรณ์':['b-green','✅'],'ต้องส่งซ่อมภายนอก':['b-red','🔀']};
+  const[c,i]=m[s]||['b-gray','?'];return`<span class="badge ${c}">${i} ${s}</span>`;
+}
+function uBadge(u){
+  const m={'ฉุกเฉิน':'b-red','เร่งด่วน':'b-amber','ปกติ':'b-green','ไม่เร่งด่วน':'b-gray'};
+  return`<span class="badge ${m[u]||'b-gray'}">${u}</span>`;
+}
+function roleBadge(r){
+  const m={admin:['b-red','🛡️','แอดมิน'],manager:['b-violet','📋','ผู้จัดการ'],technician:['b-blue','🔧','ช่าง'],user:['b-gray','👤','ผู้ใช้']};
+  const[c,i,l]=m[r]||['b-gray','?',r];return`<span class="badge ${c}">${i} ${l}</span>`;
+}
+function catIcon(c){return{'ไฟฟ้า':'⚡','ประปา':'💧','โครงสร้าง':'🏗️','อุปกรณ์อิเล็กทรอนิกส์':'💻','เครื่องปรับอากาศ':'❄️'}[c]||'🔧';}
+function roleTH(r){return{admin:'ผู้ดูแลระบบ',manager:'ผู้จัดการ',technician:'ช่างซ่อม',user:'ผู้ใช้งาน'}[r]||r;}
+function getUserName(id){return MOCK.users.find(u=>u.id===id)?.name||'–';}
+function getTechs(){return MOCK.users.filter(u=>u.role==='technician'&&u.is_active);}
+function loadingState(){return`<div class="loading-state"><div class="spinner"></div><span class="text-muted">กำลังโหลด...</span></div>`;}
+function emptyState(i,t){return`<div class="empty"><div class="ei">${i}</div><div>${t}</div></div>`;}
+function genTID(){return`TRK-2568-${String(Math.floor(Math.random()*9000)+1000)}`;}
+
+/* ═══════════════════════════════════════
+   TOAST & MODAL
+═══════════════════════════════════════ */
+function toast(msg,type='ok'){
+  let c=document.getElementById('toasts');
+  const el=document.createElement('div');
+  const icons={ok:'✅',err:'❌',warn:'⚠️',info:'ℹ️'};
+  el.className=`toast t-${type}`;
+  el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><div>${msg}</div>`;
+  c.appendChild(el);setTimeout(()=>el.remove(),3500);
+}
+function openModal(html){
+  closeModal();
+  const bd=document.createElement('div');bd.className='backdrop';bd.id='modal-bd';
+  bd.innerHTML=html;bd.addEventListener('click',e=>{if(e.target===bd)closeModal();});
+  document.body.appendChild(bd);
+  document.addEventListener('keydown',escH);
+}
+function closeModal(){document.getElementById('modal-bd')?.remove();document.removeEventListener('keydown',escH);}
+function escH(e){if(e.key==='Escape')closeModal();}
+
+/* ═══════════════════════════════════════
+   NAVIGATE
+═══════════════════════════════════════ */
+function navigate(page,params={}){
+  APP.page=page;APP.params=params;
+  window.scrollTo(0,0);
+  document.querySelectorAll('.sb-link').forEach(el=>el.classList.toggle('on',el.dataset.page===page));
+  const titles={dashboard:'📊 ภาพรวมระบบ','requests-list':'🔧 รายการแจ้งซ่อม','request-new':'➕ แจ้งซ่อมใหม่','request-detail':'📋 รายละเอียดงานซ่อม',materials:'📦 คลังวัสดุ',users:'👥 จัดการผู้ใช้',track:'🔍 ติดตามงาน',profile:'👤 โปรไฟล์'};
+  document.getElementById('page-title').textContent=titles[page]||'ระบบแจ้งซ่อม';
+  const c=document.getElementById('page-content');c.innerHTML=loadingState();
+  setTimeout(()=>{
+    switch(page){
+      case'dashboard':pageDashboard();break;
+      case'requests-list':pageRequestsList();break;
+      case'request-new':pageNewRequest();break;
+      case'request-detail':pageRequestDetail(params.id);break;
+      case'materials':pageMaterials();break;
+      case'users':pageUsers();break;
+      case'track':pageTrack();break;
+      case'profile':pageProfile();break;
+      default:c.innerHTML=emptyState('🚧','หน้านี้กำลังพัฒนา');
+    }
+  },200);
+}
+
+/* ═══════════════════════════════════════
+   BUILD SHELL
+═══════════════════════════════════════ */
+function buildShell(){
+  const u=APP.user;
+  const role=u.role;
+  const nav=[
+    {p:'dashboard',i:'📊',l:'ภาพรวม (Dashboard)',r:['manager','admin']},
+    {p:'requests-list',i:'🔧',l:'รายการแจ้งซ่อม',r:['user','technician','manager','admin']},
+    {p:'request-new',i:'➕',l:'แจ้งซ่อมใหม่',r:['user','manager','admin']},
+    {sec:'การจัดการ',r:['technician','manager','admin']},
+    {p:'materials',i:'📦',l:'คลังวัสดุ',r:['technician','manager','admin']},
+    {sec:'ทั่วไป',r:['user','technician','manager','admin']},
+    {p:'track',i:'🔍',l:'ติดตามงาน',r:['user','technician','manager','admin']},
+    {p:'users',i:'👥',l:'จัดการผู้ใช้',r:['admin','manager']},
+    {p:'profile',i:'👤',l:'โปรไฟล์ของฉัน',r:['user','technician','manager','admin']},
+  ];
+  const myNotifs=MOCK.notifications.filter(n=>n.user_id===u.id&&!n.is_read);
+  const unread=myNotifs.length;
+
+  document.getElementById('root').innerHTML=`
+  <div class="shell" id="shell">
+    <nav class="sidebar" id="sidebar">
+      <div class="sb-brand">
+        <div class="sb-logo">🔧</div>
+        <div class="sb-name">ระบบแจ้งซ่อม<small>Maintenance System</small></div>
+      </div>
+      <div class="sb-nav" id="sb-nav">
+        ${nav.filter(n=>n.r.includes(role)).map(n=>{
+          if(n.sec)return`<div class="sb-sec">${n.sec}</div>`;
+          return`<div class="sb-link" data-page="${n.p}" onclick="navigate('${n.p}')"><span class="ico">${n.i}</span><span>${n.l}</span></div>`;
+        }).join('')}
+      </div>
+      <div class="sb-foot">
+        <div class="sb-av">${u.name[0]}</div>
+        <div><div class="sb-uname">${u.name}</div><div class="sb-urole">${roleTH(u.role)}</div></div>
+        <button class="sb-out" onclick="logout()" title="ออกจากระบบ">↩</button>
+      </div>
+    </nav>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="btn btn-ghost btn-sm hidden" id="menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="tb-title" id="page-title">ระบบแจ้งซ่อม</div>
+        <div class="tb-actions">
+          <div class="icon-btn" onclick="toggleNotif()" title="การแจ้งเตือน">
+            🔔
+            ${unread?`<div class="badge-dot"></div>`:''}
+          </div>
+          <div class="user-chip">
+            <div style="width:22px;height:22px;background:linear-gradient(135deg,var(--spark2),var(--violet));border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;flex-shrink:0">${u.name[0]}</div>
+            <span>${u.name.split(' ')[0]}</span>
+          </div>
+        </div>
+      </header>
+      <main class="page" id="page-content"></main>
+    </div>
+  </div>
+  <div id="toasts"></div>`;
+
+  if(window.innerWidth<=900)document.getElementById('menu-btn').classList.remove('hidden');
+  const defPage=role==='user'?'requests-list':role==='technician'?'requests-list':'dashboard';
+  navigate(defPage);
+}
+
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
+
+/* ═══════════════════════════════════════
+   NOTIFICATIONS
+═══════════════════════════════════════ */
+function toggleNotif(){
+  const ex=document.getElementById('notif-panel');
+  if(ex){ex.remove();APP.notifOpen=false;return;}
+  APP.notifOpen=true;
+  const myNotifs=MOCK.notifications.filter(n=>n.user_id===APP.user.id);
+  const panel=document.createElement('div');
+  panel.id='notif-panel';panel.className='notif-panel';
+  panel.innerHTML=`
+    <div class="np-h">
+      <span style="font-weight:700;font-size:.83rem">🔔 การแจ้งเตือน</span>
+      <button class="btn btn-ghost btn-sm" onclick="markAllRead()">อ่านทั้งหมด</button>
+    </div>
+    ${myNotifs.length?myNotifs.map(n=>`
+      <div class="ni ${n.is_read?'':'unread'}" onclick="clickNotif(${n.id},${n.ref_request_id||'null'})">
+        ${!n.is_read?'<div class="ni-dot"></div>':'<div style="width:7px"></div>'}
+        <div><div class="ni-t">${n.title}</div><div class="ni-m">${n.message}</div><div class="ni-tm">${timeAgo(n.created_at)}</div></div>
+      </div>`).join(''):emptyState('🔔','ไม่มีการแจ้งเตือน')}`;
+  document.getElementById('shell').appendChild(panel);
+}
+function markAllRead(){
+  MOCK.notifications.filter(n=>n.user_id===APP.user.id).forEach(n=>n.is_read=1);
+  document.getElementById('notif-panel')?.remove();APP.notifOpen=false;
+  document.querySelector('.badge-dot')?.remove();toast('อ่านทั้งหมดแล้ว');
+}
+function clickNotif(id,reqId){
+  const n=MOCK.notifications.find(x=>x.id===id);if(n)n.is_read=1;
+  if(reqId)navigate('request-detail',{id:reqId});
+  document.getElementById('notif-panel')?.remove();APP.notifOpen=false;
+}
+
+/* ═══════════════════════════════════════
+   AUTH
+═══════════════════════════════════════ */
+function showAuth(){
+  document.getElementById('root').innerHTML=`
+  <div class="auth-shell">
+    <div class="auth-left">
+      <div class="auth-grid"></div>
+      <div class="auth-left-content">
+        <div class="auth-icon">🔧</div>
+        <h1 class="auth-h1">ระบบแจ้งซ่อม</h1>
+        <p class="auth-sub">Maintenance Reporting System<br>สำหรับการจัดการงานซ่อมบำรุงอย่างมีระบบและมีประสิทธิภาพ</p>
+        <div class="auth-feat">
+          <div class="af"><div class="af-i">📋</div> ติดตามสถานะงานซ่อมแบบ Real-time</div>
+          <div class="af"><div class="af-i">👷</div> มอบหมายช่าง จัดลำดับความสำคัญ SLA</div>
+          <div class="af"><div class="af-i">📦</div> บริหารคลังวัสดุอุปกรณ์ Low-stock Alert</div>
+          <div class="af"><div class="af-i">📊</div> Dashboard วิเคราะห์ข้อมูลเชิงลึก</div>
+          <div class="af"><div class="af-i">⭐</div> ระบบประเมินความพึงพอใจ</div>
+        </div>
+      </div>
+    </div>
+    <div class="auth-right">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <span class="ico">🔧</span>
+          <div><div class="nm">ระบบแจ้งซ่อม</div><span class="sub">Maintenance Reporting System</span></div>
+        </div>
+        <div class="auth-tabs">
+          <div class="atab on" id="atab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</div>
+          <div class="atab" id="atab-register" onclick="switchAuthTab('register')">สมัครสมาชิก</div>
+        </div>
+        <div id="auth-area"></div>
+      </div>
+    </div>
+  </div>
+  <div id="toasts"></div>`;
+  renderLogin();
+}
+
+function switchAuthTab(t){
+  document.querySelectorAll('.atab').forEach(el=>el.classList.toggle('on',el.id===`atab-${t}`));
+  if(t==='login')renderLogin();else renderRegister();
+}
+
+function renderLogin(){
+  document.getElementById('auth-area').innerHTML=`
+    <div id="auth-alert"></div>
+    <div class="fg"><label class="fl">อีเมล</label><input class="fc" id="l-email" type="email" value="warataya@school.ac.th"></div>
+    <div class="fg"><label class="fl">รหัสผ่าน</label><input class="fc" id="l-pass" type="password" value="user1234" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn btn-primary btn-block btn-lg" style="margin-top:.5rem" onclick="doLogin()">🔑 เข้าสู่ระบบ</button>
+    <div class="demo-panel">
+      <div class="demo-title">บัญชีทดสอบ — คลิกเพื่อเลือก</div>
+      ${[['admin@school.ac.th','admin1234','🛡️ Admin'],['supachok@school.ac.th','manager1234','📋 Manager'],['wasurat@school.ac.th','tech1234','🔧 ช่างซ่อม'],['warataya@school.ac.th','user1234','👤 ผู้ใช้']].map(([e,p,l])=>`
+        <div class="demo-row">
+          <span class="demo-label">${l}</span>
+          <button class="demo-btn" onclick="document.getElementById('l-email').value='${e}';document.getElementById('l-pass').value='${p}'">ใช้งาน</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderRegister(){
+  document.getElementById('auth-area').innerHTML=`
+    <div id="auth-alert"></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">ชื่อ-นามสกุล <span class="req">*</span></label><input class="fc" id="r-name" placeholder="ชื่อ นามสกุล"></div>
+      <div class="fg"><label class="fl">รหัสนักศึกษา</label><input class="fc" id="r-sid" placeholder="68030xxx"></div>
+    </div>
+    <div class="fg"><label class="fl">อีเมล <span class="req">*</span></label><input class="fc" id="r-email" type="email" placeholder="your@school.ac.th"></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">รหัสผ่าน <span class="req">*</span></label><input class="fc" id="r-pass" type="password" placeholder="≥ 6 ตัวอักษร"></div>
+      <div class="fg"><label class="fl">สาขา/แผนก</label><input class="fc" id="r-dept" placeholder="คอมพิวเตอร์"></div>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" style="margin-top:.5rem" onclick="doRegister()">📝 สมัครสมาชิก</button>`;
+}
+
+function doLogin(){
+  const email=document.getElementById('l-email').value.trim().toLowerCase();
+  const pass=document.getElementById('l-pass').value;
+  const u=MOCK.users.find(x=>x.email===email&&x.password===pass&&x.is_active);
+  if(!u){document.getElementById('auth-alert').innerHTML=`<div class="alert al-danger">❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง</div>`;return;}
+  u.last_login=new Date().toISOString();
+  APP.user=u;
+  buildShell();
+  toast(`ยินดีต้อนรับ ${u.name.split(' ')[0]} 👋`);
+}
+
+function doRegister(){
+  const name=document.getElementById('r-name').value.trim();
+  const email=document.getElementById('r-email').value.trim().toLowerCase();
+  const pass=document.getElementById('r-pass').value;
+  const el=document.getElementById('auth-alert');
+  if(!name||!email||!pass){el.innerHTML=`<div class="alert al-warn">⚠️ กรุณากรอกข้อมูลที่จำเป็น</div>`;return;}
+  if(pass.length<6){el.innerHTML=`<div class="alert al-warn">⚠️ รหัสผ่านต้องมีอย่างน้อย 6 ตัว</div>`;return;}
+  if(MOCK.users.find(u=>u.email===email)){el.innerHTML=`<div class="alert al-danger">❌ อีเมลนี้ถูกใช้งานแล้ว</div>`;return;}
+  const newU={id:MOCK.users.length+1,student_id:document.getElementById('r-sid').value||null,name,email,password:pass,role:'user',department:document.getElementById('r-dept').value||null,phone:null,is_active:1,last_login:null};
+  MOCK.users.push(newU);
+  el.innerHTML=`<div class="alert al-success">✅ สมัครสำเร็จ กรุณาเข้าสู่ระบบ</div>`;
+  setTimeout(()=>switchAuthTab('login'),1500);
+}
+
+function logout(){APP.user=null;showAuth();}
+
+/* ═══════════════════════════════════════
+   PAGE: DASHBOARD
+═══════════════════════════════════════ */
+function pageDashboard(){
+  const c=document.getElementById('page-content');
+  const reqs=MOCK.requests;
+  const done=reqs.filter(r=>r.status==='เสร็จสมบูรณ์').length;
+  const pending=reqs.filter(r=>r.status==='รอดำเนินการ').length;
+  const inprog=reqs.filter(r=>r.status==='กำลังดำเนินการ').length;
+  const review=reqs.filter(r=>r.status==='รอตรวจสอบ').length;
+  const overdue=reqs.filter(r=>r.sla_deadline&&new Date(r.sla_deadline)<new Date()&&r.status!=='เสร็จสมบูรณ์').length;
+  const emerg=reqs.filter(r=>r.urgency==='ฉุกเฉิน'&&r.status!=='เสร็จสมบูรณ์').length;
+
+  const catMap={};reqs.forEach(r=>{catMap[r.category]=(catMap[r.category]||0)+1;});
+  const catArr=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const maxCat=Math.max(...catArr.map(x=>x[1]),1);
+
+  const avgScore=MOCK.evaluations.length?MOCK.evaluations.reduce((a,e)=>a+Number(e.avg_score),0)/MOCK.evaluations.length:0;
+
+  const techs=getTechs().map(t=>{
+    const jobs=reqs.filter(r=>r.tech_id===t.id);
+    const doneJobs=jobs.filter(r=>r.status==='เสร็จสมบูรณ์').length;
+    const techEvals=MOCK.evaluations.filter(e=>jobs.map(j=>j.id).includes(e.request_id));
+    const score=techEvals.length?techEvals.reduce((a,e)=>a+Number(e.avg_score),0)/techEvals.length:0;
+    return{...t,total:jobs.length,done:doneJobs,score:score.toFixed(1)};
+  });
+
+  const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const now=new Date();
+  const monthly=months.slice(0,now.getMonth()+1).slice(-6).map(m=>{
+    const yr=String(now.getFullYear());
+    return{month:`${yr}-${m}`,count:reqs.filter(r=>r.created_at?.startsWith(`${yr}-${m}`)).length};
+  });
+  const maxMon=Math.max(...monthly.map(m=>m.count),1);
+
+  c.innerHTML=`
+  <div class="stats-grid">
+    ${[['📋',reqs.length,'ทั้งหมด','c-blue','▲ 2 จากสัปดาห์ก่อน'],['⏳',pending,'รอดำเนินการ','c-amber'],['⚙️',inprog,'กำลังดำเนินการ','c-blue'],['🔍',review,'รอตรวจสอบ','c-violet'],['✅',done,'เสร็จสมบูรณ์','c-green'],['🚨',overdue,'เกิน SLA','c-red'],['⚡',emerg,'ฉุกเฉิน','c-red']].map(([ico,val,lbl,cls,sub])=>`
+    <div class="scard ${cls}">
+      <div class="scard-row"><div class="scard-ico">${ico}</div>${sub?`<div class="scard-badge">${sub}</div>`:''}</div>
+      <div class="scard-val">${val}</div><div class="scard-lbl">${lbl}</div>
+      <div class="scard-bar"></div><div class="scard-glow"></div>
+    </div>`).join('')}
+  </div>
+
+  <div class="g2 mb">
+    <div class="card">
+      <div class="card-h"><div class="card-t">📈 แนวโน้มรายเดือน</div></div>
+      <div class="card-b">
+        <div style="display:flex;align-items:flex-end;gap:6px;height:130px;padding-top:.5rem">
+          ${monthly.map(m=>`
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+              <span style="font-size:.6rem;color:var(--spark);font-weight:700">${m.count}</span>
+              <div style="width:100%;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--spark),var(--spark2));height:${Math.max(4,Math.round(m.count/maxMon*110))}px;opacity:.85"></div>
+              <span style="font-size:.58rem;color:var(--chalk3)">${m.month.slice(5)}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div class="card-t">🏷️ ประเภทงานซ่อม</div></div>
+      <div class="card-b">
+        <div class="barchart">
+          ${catArr.map(([cat,cnt])=>`
+            <div class="brow">
+              <div class="bl">${catIcon(cat)} ${cat}</div>
+              <div class="bt"><div class="bf" style="width:${Math.round(cnt/maxCat*100)}%;background:var(--spark)"></div></div>
+              <div class="bv">${cnt}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g3 mb">
+    ${[['⭐','คะแนนพึงพอใจ',avgScore?avgScore.toFixed(2)+'/5.0':'–','var(--amber)'],['✅','อัตราสำเร็จ',reqs.length?Math.round(done/reqs.length*100)+'%':'0%','var(--green)'],['📝','ผลประเมินทั้งหมด',MOCK.evaluations.length+' รายการ','var(--violet)']].map(([ico,lbl,val,color])=>`
+      <div class="card">
+        <div class="card-b" style="display:flex;align-items:center;gap:1rem">
+          <div style="font-size:1.75rem">${ico}</div>
+          <div><div style="font-size:1.5rem;font-weight:900;color:${color};font-family:var(--mono)">${val}</div><div class="text-muted">${lbl}</div></div>
+        </div>
+      </div>`).join('')}
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div class="card-t">👷 ประสิทธิภาพช่างซ่อม</div></div>
+    <div class="tw"><table>
+      <thead><tr><th>ชื่อช่าง</th><th>แผนก</th><th>งานทั้งหมด</th><th>เสร็จแล้ว</th><th>คะแนนเฉลี่ย</th><th>อัตราสำเร็จ</th></tr></thead>
+      <tbody>${techs.map(t=>{
+        const rate=t.total?Math.round(t.done/t.total*100):0;
+        return`<tr>
+          <td><strong>${t.name}</strong></td>
+          <td class="text-muted text-sm">${t.department}</td>
+          <td class="mono">${t.total}</td>
+          <td><span class="badge b-green">${t.done}</span></td>
+          <td>${t.score>0?`<span style="color:var(--amber)">⭐ ${t.score}</span>`:'–'}</td>
+          <td>
+            <div class="flex ic gap2">
+              <div class="progress" style="flex:1"><div class="pbar" style="width:${rate}%;background:${rate>=80?'var(--green)':rate>=50?'var(--amber)':'var(--red)'}"></div></div>
+              <span class="text-xs mono">${rate}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════
+   PAGE: REQUESTS LIST
+═══════════════════════════════════════ */
+let _flt={};
+function pageRequestsList(flt={}){
+  _flt=flt;
+  const c=document.getElementById('page-content');
+  const role=APP.user.role;
+  const uid=APP.user.id;
+  let reqs=MOCK.requests;
+  if(role==='user')reqs=reqs.filter(r=>r.requester_id===uid);
+  if(role==='technician')reqs=reqs.filter(r=>r.tech_id===uid);
+  if(flt.status)reqs=reqs.filter(r=>r.status===flt.status);
+  if(flt.category)reqs=reqs.filter(r=>r.category===flt.category);
+  if(flt.urgency)reqs=reqs.filter(r=>r.urgency===flt.urgency);
+  if(flt.search){const s=flt.search.toLowerCase();reqs=reqs.filter(r=>r.tracking_id.toLowerCase().includes(s)||r.description.toLowerCase().includes(s)||getUserName(r.requester_id).toLowerCase().includes(s));}
+  const urgOrd={'ฉุกเฉิน':1,'เร่งด่วน':2,'ปกติ':3,'ไม่เร่งด่วน':4};
+  reqs.sort((a,b)=>(urgOrd[a.urgency]||5)-(urgOrd[b.urgency]||5));
+
+  const stats={pending:MOCK.requests.filter(r=>(role==='user'?r.requester_id===uid:role==='technician'?r.tech_id===uid:true)&&r.status==='รอดำเนินการ').length,inprog:MOCK.requests.filter(r=>(role==='user'?r.requester_id===uid:role==='technician'?r.tech_id===uid:true)&&r.status==='กำลังดำเนินการ').length,done:MOCK.requests.filter(r=>(role==='user'?r.requester_id===uid:role==='technician'?r.tech_id===uid:true)&&r.status==='เสร็จสมบูรณ์').length};
+  const canCreate=['user','manager','admin'].includes(role);
+  const canAssign=['manager','admin'].includes(role);
+
+  c.innerHTML=`
+  <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+    ${[['⏳',stats.pending,'รอดำเนินการ','c-amber','รอดำเนินการ'],['⚙️',stats.inprog,'กำลังดำเนินการ','c-blue','กำลังดำเนินการ'],['✅',stats.done,'เสร็จสมบูรณ์','c-green','เสร็จสมบูรณ์']].map(([ico,val,lbl,cls,sf])=>`
+    <div class="scard ${cls}" style="cursor:pointer" onclick="pageRequestsList({status:'${sf}'})">
+      <div class="scard-row"><div class="scard-ico">${ico}</div></div>
+      <div class="scard-val">${val}</div><div class="scard-lbl">${lbl}</div>
+      <div class="scard-bar"></div>
+    </div>`).join('')}
+  </div>
+
+  <div class="card">
+    <div style="padding:.875rem 1.25rem;border-bottom:1px solid var(--wire);display:flex;flex-wrap:wrap;gap:.625rem;align-items:flex-end">
+      <div class="fg" style="flex:2 1 200px;margin:0">
+        <label class="fl">ค้นหา</label>
+        <div class="igrp"><input class="fc" id="f-s" placeholder="Tracking ID / รายละเอียด..." value="${flt.search||''}"><button class="btn btn-primary" onclick="applyF()">🔍</button></div>
+      </div>
+      <div class="fg" style="flex:1 1 130px;margin:0"><label class="fl">สถานะ</label><select class="fc" id="f-st" onchange="applyF()"><option value="">ทั้งหมด</option>${['รอดำเนินการ','กำลังดำเนินการ','รอตรวจสอบ','เสร็จสมบูรณ์','ต้องส่งซ่อมภายนอก'].map(s=>`<option${flt.status===s?' selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="fg" style="flex:1 1 120px;margin:0"><label class="fl">ประเภท</label><select class="fc" id="f-ct" onchange="applyF()"><option value="">ทั้งหมด</option>${['ไฟฟ้า','ประปา','โครงสร้าง','อุปกรณ์อิเล็กทรอนิกส์','เครื่องปรับอากาศ'].map(s=>`<option${flt.category===s?' selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="fg" style="flex:1 1 120px;margin:0"><label class="fl">ความเร่งด่วน</label><select class="fc" id="f-ur" onchange="applyF()"><option value="">ทั้งหมด</option>${['ฉุกเฉิน','เร่งด่วน','ปกติ','ไม่เร่งด่วน'].map(s=>`<option${flt.urgency===s?' selected':''}>${s}</option>`).join('')}</select></div>
+      <div style="align-self:flex-end;display:flex;gap:.375rem">
+        <button class="btn btn-ghost btn-sm" onclick="pageRequestsList({})">↺</button>
+        ${canCreate?`<button class="btn btn-primary btn-sm" onclick="navigate('request-new')">➕ แจ้งซ่อม</button>`:''}
+      </div>
+    </div>
+    <div style="padding:.6rem 1.25rem;border-bottom:1px solid var(--wire)"><span class="text-muted">พบ <strong style="color:var(--chalk)">${reqs.length}</strong> รายการ</span></div>
+    <div class="tw"><table>
+      <thead><tr><th>Tracking ID</th><th>ประเภท</th><th>รายละเอียด</th><th>สถานที่</th><th>ความเร่งด่วน</th><th>สถานะ</th>${canAssign?'<th>ช่าง</th>':''}<th>วันที่แจ้ง</th><th></th></tr></thead>
+      <tbody>
+        ${reqs.length?reqs.map(r=>{
+          const overdue=r.sla_deadline&&new Date(r.sla_deadline)<new Date()&&r.status!=='เสร็จสมบูรณ์';
+          return`<tr${overdue?' style="background:rgba(255,71,87,0.04)"':''}>
+            <td><span class="tid">${r.tracking_id}</span>${overdue?'<br><span class="badge b-red" style="font-size:.6rem;margin-top:2px">⏰ เกิน SLA</span>':''}</td>
+            <td><span style="font-size:.95rem">${catIcon(r.category)}</span> <span class="text-sm">${r.category}</span></td>
+            <td><div style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description}</div><div class="text-xs" style="color:var(--chalk3)">${getUserName(r.requester_id)}</div></td>
+            <td class="text-sm">${r.location||'–'}</td>
+            <td>${uBadge(r.urgency)}</td>
+            <td>${sBadge(r.status)}</td>
+            ${canAssign?`<td class="text-sm">${r.tech_id?getUserName(r.tech_id):'<span class="text-muted">–</span>'}</td>`:''}
+            <td><div class="text-xs">${fmtDate(r.created_at,true)}</div></td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-ghost btn-sm" onclick="navigate('request-detail',{id:${r.id}})">ดู →</button>
+              ${canAssign&&r.status==='รอดำเนินการ'?`<button class="btn btn-primary btn-sm" style="margin-top:2px;display:block" onclick="openAssignModal(${r.id},'${r.tracking_id}')">มอบหมาย</button>`:''}
+            </td>
+          </tr>`;
+        }).join(''):`<tr><td colspan="${canAssign?9:8}">${emptyState('📭','ไม่มีรายการที่ตรงกับเงื่อนไข')}</td></tr>`}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+function applyF(){
+  const f={};
+  const s=document.getElementById('f-s')?.value;const st=document.getElementById('f-st')?.value;const ct=document.getElementById('f-ct')?.value;const ur=document.getElementById('f-ur')?.value;
+  if(s)f.search=s;if(st)f.status=st;if(ct)f.category=ct;if(ur)f.urgency=ur;
+  pageRequestsList(f);
+}
+
+function openAssignModal(reqId,tid){
+  const techs=getTechs();
+  openModal(`<div class="modal"><div class="mh"><div class="mt">👷 มอบหมายช่างซ่อม</div><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mb2">
+    <div class="alert al-info">📋 งาน: <strong>${tid}</strong></div>
+    <div class="fg"><label class="fl">เลือกช่าง <span class="req">*</span></label><select class="fc" id="a-tech"><option value="">-- เลือกช่าง --</option>${techs.map(t=>{const active=MOCK.requests.filter(r=>r.tech_id===t.id&&['กำลังดำเนินการ','รอตรวจสอบ'].includes(r.status)).length;return`<option value="${t.id}">${t.name} (งานปัจจุบัน: ${active})</option>`;}).join('')}</select></div>
+    <div style="display:grid;gap:.5rem">${techs.map(t=>{const a=MOCK.requests.filter(r=>r.tech_id===t.id&&['กำลังดำเนินการ','รอตรวจสอบ'].includes(r.status)).length;return`<div style="padding:.6rem .875rem;background:var(--ink3);border-radius:var(--r);border:1px solid var(--wire);display:flex;justify-content:space-between;align-items:center;font-size:.8rem"><div><strong>${t.name}</strong> <span class="text-muted">${t.department}</span></div><span class="badge b-blue">งาน ${a}</span></div>`;}).join('')}</div>
+  </div>
+  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doAssign(${reqId})">✅ ยืนยัน</button></div></div>`);
+}
+
+function doAssign(reqId){
+  const techId=parseInt(document.getElementById('a-tech').value);
+  if(!techId){toast('กรุณาเลือกช่าง','warn');return;}
+  const r=MOCK.requests.find(x=>x.id===reqId);
+  if(r){r.tech_id=techId;r.status='กำลังดำเนินการ';r.assigned_at=new Date().toISOString();}
+  toast(`มอบหมายให้ ${getUserName(techId)} สำเร็จ`);closeModal();pageRequestsList(_flt);
+}
+
+/* ═══════════════════════════════════════
+   PAGE: NEW REQUEST
+═══════════════════════════════════════ */
+let _locData={};
+function pageNewRequest(){
+  const c=document.getElementById('page-content');
+  const buildings=['อาคาร A','อาคาร B','อาคาร C','อาคาร D'];
+  const locMap={'อาคาร A':{floor:['ชั้น 1','ชั้น 2','ชั้น 3'],rooms:{'ชั้น 1':['ห้อง 101','ห้อง 102','ห้อง 103'],'ชั้น 2':['ห้อง 201','ห้อง 202'],'ชั้น 3':['ห้อง 301']}},'อาคาร B':{floor:['ชั้น 1','ชั้น 2'],rooms:{'ชั้น 1':['ห้องปฏิบัติการ 1','ห้องปฏิบัติการ 2'],'ชั้น 2':['ห้องประชุม','ห้องอาจารย์']}},'อาคาร C':{floor:['ชั้น 1','ชั้น 2'],rooms:{'ชั้น 1':['สำนักงาน','ห้องน้ำ ชั้น 1'],'ชั้น 2':['ห้องผู้อำนวยการ']}},'อาคาร D':{floor:['ชั้น 1','ชั้น 2','ชั้น 3'],rooms:{'ชั้น 1':['ห้องพัก 101','ห้องพัก 102'],'ชั้น 2':['ห้องพัก 201','ห้องพัก 202'],'ชั้น 3':['ห้องพัก 301']}}};
+  _locData=locMap;
+
+  c.innerHTML=`
+  <div style="max-width:720px;margin:0 auto">
+    <div class="card">
+      <div class="card-h"><div class="card-t">➕ แบบฟอร์มแจ้งซ่อม</div><button class="btn btn-ghost btn-sm" onclick="navigate('requests-list')">← กลับ</button></div>
+      <div class="card-b">
+        <div id="req-alert"></div>
+
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--chalk3);margin-bottom:.75rem">1. ประเภทปัญหา</div>
+          <div class="cat-grid">
+            ${[['ไฟฟ้า','⚡'],['ประปา','💧'],['โครงสร้าง','🏗️'],['อุปกรณ์อิเล็กทรอนิกส์','💻'],['เครื่องปรับอากาศ','❄️']].map(([cat,ico])=>`
+            <div class="catcard" id="c-${cat}" onclick="selCat('${cat}',this)">
+              <div class="cc-i">${ico}</div><div class="cc-t">${cat}</div>
+            </div>`).join('')}
+          </div>
+          <input type="hidden" id="req-cat">
+        </div>
+
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--chalk3);margin-bottom:.75rem">2. สถานที่เกิดเหตุ</div>
+          <div class="frow3">
+            <div class="fg"><label class="fl">อาคาร</label><select class="fc" id="req-bld" onchange="upFloor()"><option value="">-- เลือก --</option>${buildings.map(b=>`<option>${b}</option>`).join('')}</select></div>
+            <div class="fg"><label class="fl">ชั้น</label><select class="fc" id="req-fl" onchange="upRoom()" disabled><option value="">-- เลือก --</option></select></div>
+            <div class="fg"><label class="fl">ห้อง</label><select class="fc" id="req-rm" disabled><option value="">-- เลือก --</option></select></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--chalk3);margin-bottom:.75rem">3. รายละเอียดปัญหา</div>
+          <div class="fg"><textarea class="fc" id="req-desc" rows="4" placeholder="อธิบายรายละเอียดปัญหา..."></textarea></div>
+        </div>
+
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--chalk3);margin-bottom:.75rem">4. ระดับความเร่งด่วน</div>
+          <div class="u-grid">
+            ${[['ฉุกเฉิน','u-red','🚨','ต้องดำเนินการทันที — อันตราย/กระทบรุนแรง'],['เร่งด่วน','u-amber','⚡','ภายใน 24 ชั่วโมง — กระทบการใช้งาน'],['ปกติ','u-green','📋','ภายใน 3 วันทำการ'],['ไม่เร่งด่วน','u-gray','📌','ภายใน 7 วันทำการ — ปรับปรุงทั่วไป']].map(([u,cls,ico,d])=>`
+            <div class="ucard ${cls}" id="u-${u}" onclick="selUrg('${u}',this)">
+              <div class="uc-t">${ico} ${u}</div><div class="uc-d">${d}</div>
+            </div>`).join('')}
+          </div>
+          <input type="hidden" id="req-urg">
+        </div>
+
+        <div style="display:flex;gap:.5rem;justify-content:flex-end">
+          <button class="btn btn-ghost" onclick="navigate('requests-list')">ยกเลิก</button>
+          <button class="btn btn-primary btn-lg" onclick="submitReq()">📨 ส่งคำขอแจ้งซ่อม</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function selCat(v,el){document.querySelectorAll('.catcard').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');document.getElementById('req-cat').value=v;}
+function selUrg(v,el){document.querySelectorAll('.ucard').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');document.getElementById('req-urg').value=v;}
+function upFloor(){
+  const bld=document.getElementById('req-bld').value;
+  const d=_locData[bld];
+  const fs=document.getElementById('req-fl');
+  fs.innerHTML='<option value="">-- เลือก --</option>'+(d?d.floor.map(f=>`<option>${f}</option>`).join(''):'');
+  fs.disabled=!d;document.getElementById('req-rm').innerHTML='<option value="">-- เลือก --</option>';document.getElementById('req-rm').disabled=true;
+}
+function upRoom(){
+  const bld=document.getElementById('req-bld').value;const fl=document.getElementById('req-fl').value;
+  const rooms=_locData[bld]?.rooms[fl]||[];
+  const rs=document.getElementById('req-rm');
+  rs.innerHTML='<option value="">-- เลือก --</option>'+rooms.map(r=>`<option>${r}</option>`).join('');
+  rs.disabled=!rooms.length;
+}
+function submitReq(){
+  const cat=document.getElementById('req-cat').value;
+  const desc=document.getElementById('req-desc').value.trim();
+  const urg=document.getElementById('req-urg').value;
+  const bld=document.getElementById('req-bld').value;
+  const fl=document.getElementById('req-fl').value;
+  const rm=document.getElementById('req-rm').value;
+  const alertEl=document.getElementById('req-alert');
+  if(!cat){alertEl.innerHTML=`<div class="alert al-warn">⚠️ กรุณาเลือกประเภทปัญหา</div>`;return;}
+  if(!desc){alertEl.innerHTML=`<div class="alert al-warn">⚠️ กรุณากรอกรายละเอียด</div>`;return;}
+  if(!urg){alertEl.innerHTML=`<div class="alert al-warn">⚠️ กรุณาเลือกความเร่งด่วน</div>`;return;}
+  const slaMap={'ฉุกเฉิน':0,'เร่งด่วน':1,'ปกติ':3,'ไม่เร่งด่วน':7};
+  const sla=new Date();sla.setDate(sla.getDate()+(slaMap[urg]||3));
+  const tid=genTID();
+  const newR={id:MOCK.nextReqId++,tracking_id:tid,requester_id:APP.user.id,category:cat,location:bld&&fl&&rm?`${bld} ${fl} ${rm}`:bld||'ไม่ระบุ',description:desc,urgency:urg,status:'รอดำเนินการ',tech_id:null,created_at:new Date().toISOString(),assigned_at:null,completed_at:null,repair_detail:null,sla_deadline:sla.toISOString()};
+  MOCK.requests.unshift(newR);
+  document.getElementById('page-content').innerHTML=`
+    <div style="max-width:480px;margin:4rem auto;text-align:center">
+      <div style="font-size:5rem;margin-bottom:1.5rem;animation:float 2s ease infinite">✅</div>
+      <h2 style="color:var(--green);margin-bottom:.75rem;font-size:1.5rem">แจ้งซ่อมสำเร็จ!</h2>
+      <p class="text-muted mb2">บันทึกหมายเลขติดตามงานของคุณ</p>
+      <div class="track-box mb2">
+        <div class="text-xs" style="color:var(--chalk3);margin-bottom:.5rem">หมายเลขติดตามงาน</div>
+        <div class="track-id">${tid}</div>
+        <div class="text-xs" style="color:var(--chalk3);margin-top:.5rem">ใช้สำหรับติดตามสถานะ</div>
+      </div>
+      <div class="flex ic gap2" style="justify-content:center">
+        <button class="btn btn-ghost" onclick="navigate('track')">🔍 ติดตามงาน</button>
+        <button class="btn btn-primary" onclick="navigate('requests-list')">📋 ดูรายการ</button>
+      </div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════
+   PAGE: REQUEST DETAIL
+═══════════════════════════════════════ */
+function pageRequestDetail(id){
+  const c=document.getElementById('page-content');
+  const r=MOCK.requests.find(x=>x.id===id);
+  if(!r){c.innerHTML=`<div class="alert al-danger">❌ ไม่พบข้อมูล</div>`;return;}
+  const role=APP.user.role;const uid=APP.user.id;
+  const eval_=MOCK.evaluations.find(e=>e.request_id===id);
+  const overdue=r.sla_deadline&&new Date(r.sla_deadline)<new Date()&&r.status!=='เสร็จสมบูรณ์';
+  const statusOrder=['รอดำเนินการ','กำลังดำเนินการ','รอตรวจสอบ','เสร็จสมบูรณ์'];
+  const si=statusOrder.indexOf(r.status);
+  const canTech=role==='technician'&&r.tech_id===uid;
+  const canManager=['manager','admin'].includes(role);
+  const canAssign=canManager&&!r.tech_id;
+  const canEval=role==='user'&&r.requester_id===uid&&r.status==='เสร็จสมบูรณ์'&&!eval_;
+
+  c.innerHTML=`
+  <div style="max-width:820px;margin:0 auto">
+    <div class="flex ic jb mb2" style="flex-wrap:wrap;gap:.5rem">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('requests-list')">← กลับ</button>
+      <div class="flex gap1 ic" style="flex-wrap:wrap">
+        ${canAssign?`<button class="btn btn-primary btn-sm" onclick="openAssignModal(${r.id},'${r.tracking_id}')">👷 มอบหมายช่าง</button>`:''}
+        ${canTech&&r.status!=='เสร็จสมบูรณ์'?`<button class="btn btn-amber btn-sm" onclick="openStatusModal(${r.id})">🔄 อัปเดตสถานะ</button>`:''}
+        ${canEval?`<button class="btn btn-primary btn-sm" style="background:var(--amber);color:#000;border-color:var(--amber)" onclick="openEvalModal(${r.id})">⭐ ประเมินงาน</button>`:''}
+      </div>
+    </div>
+
+    <div class="card mb">
+      <div class="card-h">
+        <div><div class="flex ic gap1"><span class="tid">${r.tracking_id}</span>${overdue?'<span class="badge b-red">⏰ เกิน SLA</span>':''}</div><div class="text-muted text-xs" style="margin-top:3px">${catIcon(r.category)} ${r.category} · แจ้งเมื่อ ${fmtDate(r.created_at)}</div></div>
+        <div class="flex gap1">${uBadge(r.urgency)} ${sBadge(r.status)}</div>
+      </div>
+      <div class="card-b">
+        <div class="g2">
+          <div><div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">ผู้แจ้งซ่อม</div><div style="font-weight:700">${getUserName(r.requester_id)}</div></div>
+          <div><div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">สถานที่</div><div style="font-weight:700">${r.location||'–'}</div></div>
+          <div><div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">ช่างที่รับผิดชอบ</div><div style="font-weight:700">${r.tech_id?getUserName(r.tech_id):'– ยังไม่ได้มอบหมาย –'}</div></div>
+          <div><div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">กำหนด SLA</div><div style="font-weight:700;color:${overdue?'var(--red)':'inherit'}">${fmtDate(r.sla_deadline)}</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="text-xs" style="color:var(--chalk3);margin-bottom:5px">รายละเอียดปัญหา</div>
+        <p style="line-height:1.8;font-size:.85rem">${r.description}</p>
+        ${r.repair_detail?`<div class="alert al-info mt2">🔧 <strong>รายละเอียดการซ่อม:</strong> ${r.repair_detail}</div>`:''}
+      </div>
+    </div>
+
+    <div class="card mb">
+      <div class="card-h"><div class="card-t">⏱️ ความคืบหน้า</div></div>
+      <div class="card-b">
+        <div class="tl">
+          ${statusOrder.map((s,i)=>`
+            <div class="tl-step">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                <div class="tl-dot ${i<si?'done':i===si?'curr':''}">${i<si?'✓':i+1}</div>
+                <div class="tl-lbl ${i<si?'done':i===si?'curr':''}">${s}</div>
+              </div>
+            </div>
+            ${i<statusOrder.length-1?`<div class="tl-line ${i<si?'done':''}"></div>`:''}`).join('')}
+        </div>
+        <div class="g2 mt2" style="font-size:.75rem;color:var(--chalk2)">
+          <div>📅 มอบหมาย: <strong style="color:var(--chalk)">${fmtDate(r.assigned_at)}</strong></div>
+          <div>✅ เสร็จ: <strong style="color:var(--chalk)">${fmtDate(r.completed_at)}</strong></div>
+        </div>
+      </div>
+    </div>
+
+    ${eval_?`
+    <div class="card">
+      <div class="card-h"><div class="card-t">⭐ ผลการประเมิน</div><span class="badge b-amber">เฉลี่ย ${Number(eval_.avg_score).toFixed(2)}</span></div>
+      <div class="card-b">
+        <div class="g3">
+          ${[['คุณภาพงาน',eval_.quality_score],['ความรวดเร็ว',eval_.speed_score],['การบริการ',eval_.service_score]].map(([l,s])=>`
+          <div style="text-align:center;padding:1rem;background:var(--ink3);border-radius:var(--r2);border:1px solid var(--wire)">
+            <div style="font-size:1.5rem;margin-bottom:.25rem">${'★'.repeat(s)}${'☆'.repeat(5-s)}</div>
+            <div style="font-weight:700;color:var(--amber);font-family:var(--mono)">${s}/5</div>
+            <div class="text-xs" style="color:var(--chalk2)">${l}</div>
+          </div>`).join('')}
+        </div>
+        ${eval_.comment?`<div class="alert al-info mt2">💬 "${eval_.comment}"</div>`:''}
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+function openStatusModal(reqId){
+  openModal(`<div class="modal"><div class="mh"><div class="mt">🔄 อัปเดตสถานะ</div><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mb2">
+    <div class="fg"><label class="fl">สถานะใหม่</label>
+      <select class="fc" id="ns"><option>กำลังดำเนินการ</option><option>รอตรวจสอบ</option><option>เสร็จสมบูรณ์</option><option>ต้องส่งซ่อมภายนอก</option></select>
+    </div>
+    <div class="fg"><label class="fl">รายละเอียดการดำเนินการ</label><textarea class="fc" id="rd" rows="4" placeholder="อธิบายสิ่งที่ทำ..."></textarea></div>
+  </div>
+  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doUpdateStatus(${reqId})">✅ บันทึก</button></div></div>`);
+}
+
+function doUpdateStatus(reqId){
+  const status=document.getElementById('ns').value;const rd=document.getElementById('rd').value;
+  const r=MOCK.requests.find(x=>x.id===reqId);
+  if(r){r.status=status;if(rd)r.repair_detail=rd;if(status==='เสร็จสมบูรณ์')r.completed_at=new Date().toISOString();}
+  toast('อัปเดตสถานะสำเร็จ');closeModal();pageRequestDetail(reqId);
+}
+
+function openEvalModal(reqId){
+  openModal(`<div class="modal"><div class="mh"><div class="mt">⭐ ประเมินความพึงพอใจ</div><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mb2">
+    <p class="text-muted mb2">กรุณาให้คะแนน 1–5 ดาวในแต่ละหัวข้อ</p>
+    ${[['quality','คุณภาพงาน'],['speed','ความรวดเร็ว'],['service','การบริการ']].map(([k,l])=>`
+    <div class="sg"><div class="sg-l">${l}</div>
+    <div class="stars" id="st-${k}">${[1,2,3,4,5].map(n=>`<span class="star" data-v="${n}" onclick="setStar('${k}',${n})">★</span>`).join('')}</div>
+    <input type="hidden" id="sc-${k}" value="0"></div>`).join('')}
+    <div class="fg"><label class="fl">ความคิดเห็น</label><textarea class="fc" id="ec" rows="3" placeholder="บอกเราเพิ่มเติม..."></textarea></div>
+  </div>
+  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doEval(${reqId})">⭐ ส่ง</button></div></div>`);
+}
+function setStar(k,v){document.getElementById(`sc-${k}`).value=v;document.querySelectorAll(`#st-${k} .star`).forEach(s=>s.classList.toggle('on',parseInt(s.dataset.v)<=v));}
+function doEval(reqId){
+  const q=parseInt(document.getElementById('sc-quality').value);const sp=parseInt(document.getElementById('sc-speed').value);const sv=parseInt(document.getElementById('sc-service').value);const cm=document.getElementById('ec').value;
+  if(!q||!sp||!sv){toast('กรุณาให้คะแนนทุกหัวข้อ','warn');return;}
+  MOCK.evaluations.push({id:MOCK.evaluations.length+1,request_id:reqId,quality_score:q,speed_score:sp,service_score:sv,avg_score:((q+sp+sv)/3).toFixed(2),comment:cm});
+  toast('บันทึกผลประเมินสำเร็จ ขอบคุณ!');closeModal();pageRequestDetail(reqId);
+}
+
+/* ═══════════════════════════════════════
+   PAGE: MATERIALS
+═══════════════════════════════════════ */
+function pageMaterials(){
+  const c=document.getElementById('page-content');
+  const role=APP.user.role;const canManage=['admin','manager'].includes(role);
+  const items=MOCK.materials;
+  const lowItems=items.filter(m=>m.quantity<=m.reorder_point&&m.reorder_point>0);
+  const totalVal=items.reduce((a,m)=>a+m.quantity*m.unit_price,0);
+  const cats=[...new Set(items.map(m=>m.category))];
+
+  c.innerHTML=`
+  <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+    <div class="scard c-blue"><div class="scard-row"><div class="scard-ico">📦</div></div><div class="scard-val">${items.length}</div><div class="scard-lbl">รายการทั้งหมด</div><div class="scard-bar"></div></div>
+    <div class="scard c-red"><div class="scard-row"><div class="scard-ico">⚠️</div></div><div class="scard-val">${lowItems.length}</div><div class="scard-lbl">ใกล้หมด / หมด</div><div class="scard-bar"></div></div>
+    <div class="scard c-green"><div class="scard-row"><div class="scard-ico">💰</div></div><div class="scard-val" style="font-size:1.4rem">฿${totalVal.toLocaleString()}</div><div class="scard-lbl">มูลค่าคลังรวม</div><div class="scard-bar"></div></div>
+  </div>
+
+  <div class="card">
+    <div style="padding:.875rem 1.25rem;border-bottom:1px solid var(--wire);display:flex;flex-wrap:wrap;gap:.625rem;align-items:flex-end">
+      <div class="fg" style="flex:2 1 180px;margin:0"><label class="fl">ค้นหา</label>
+        <div class="igrp"><input class="fc" id="ms" placeholder="ชื่อหรือรหัสวัสดุ..." onkeydown="if(event.key==='Enter')filterMat()"><button class="btn btn-primary" onclick="filterMat()">🔍</button></div>
+      </div>
+      <div class="fg" style="flex:1 1 130px;margin:0"><label class="fl">หมวดหมู่</label><select class="fc" id="mc" onchange="filterMat()"><option value="">ทั้งหมด</option>${cats.map(cat=>`<option>${cat}</option>`).join('')}</select></div>
+      <div class="fg" style="flex:1 1 120px;margin:0"><label class="fl">แสดง</label><select class="fc" id="mls" onchange="filterMat()"><option value="">ทั้งหมด</option><option value="low">ใกล้หมด</option></select></div>
+      <div style="align-self:flex-end">${canManage?`<button class="btn btn-primary btn-sm" onclick="openAddMatModal()">➕ เพิ่มวัสดุ</button>`:''}</div>
+    </div>
+    <div class="tw" id="mat-table-wrap">${renderMatTable(items,canManage)}</div>
+  </div>`;
+}
+
+function renderMatTable(items,canManage){
+  if(!items.length)return`<div style="padding:2rem">${emptyState('📦','ไม่มีรายการ')}</div>`;
+  return`<table><thead><tr><th>รหัส</th><th>ชื่อวัสดุ</th><th>หมวด</th><th>ยี่ห้อ</th><th>คงเหลือ</th><th>Reorder</th><th>ราคา/หน่วย</th><th>มูลค่า</th><th>สถานะ</th>${canManage?'<th></th>':''}</tr></thead>
+  <tbody>${items.map(m=>{
+    const low=m.quantity<=m.reorder_point&&m.reorder_point>0;const empty=m.quantity===0;
+    return`<tr${empty?' style="background:rgba(255,71,87,0.04)"':low?' style="background:rgba(255,184,0,0.04)"':''}>
+      <td><span class="tid">${m.code}</span></td>
+      <td><strong>${m.name}</strong></td>
+      <td><span class="badge b-gray">${m.category}</span></td>
+      <td class="text-muted text-sm">${m.brand||'–'}</td>
+      <td><strong style="color:${empty?'var(--red)':low?'var(--amber)':'var(--chalk)'}">${m.quantity}</strong> <span class="text-xs text-muted">${m.unit}</span></td>
+      <td class="mono text-sm">${m.reorder_point}</td>
+      <td class="mono text-sm">฿${m.unit_price.toLocaleString()}</td>
+      <td class="mono text-sm">฿${(m.quantity*m.unit_price).toLocaleString()}</td>
+      <td>${empty?'<span class="badge b-red">❌ หมด</span>':low?'<span class="badge b-amber">⚠️ ใกล้หมด</span>':'<span class="badge b-green">✅ ปกติ</span>'}</td>
+      ${canManage?`<td><button class="btn btn-ghost btn-sm" onclick="openStockIn(${m.id},'${m.name}')">+รับเข้า</button></td>`:''}
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function filterMat(){
+  const s=document.getElementById('ms')?.value.toLowerCase()||'';const cat=document.getElementById('mc')?.value||'';const ls=document.getElementById('mls')?.value||'';
+  let items=MOCK.materials;
+  if(s)items=items.filter(m=>m.name.toLowerCase().includes(s)||m.code.toLowerCase().includes(s));
+  if(cat)items=items.filter(m=>m.category===cat);
+  if(ls==='low')items=items.filter(m=>m.quantity<=m.reorder_point&&m.reorder_point>0);
+  const canManage=['admin','manager'].includes(APP.user.role);
+  document.getElementById('mat-table-wrap').innerHTML=renderMatTable(items,canManage);
+}
+
+function openStockIn(id,name){
+  openModal(`<div class="modal"><div class="mh"><div class="mt">📥 รับวัสดุเข้าคลัง</div><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mb2"><div class="alert al-info">📦 <strong>${name}</strong></div>
+    <div class="frow"><div class="fg"><label class="fl">จำนวน <span class="req">*</span></label><input class="fc" type="number" id="si-q" min="1" value="1"></div>
+    <div class="fg"><label class="fl">หมายเหตุ</label><input class="fc" id="si-n" placeholder="แหล่งที่มา..."></div></div>
+  </div>
+  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-success" onclick="doStockIn(${id})">✅ บันทึก</button></div></div>`);
+}
+
+function doStockIn(id){
+  const q=parseInt(document.getElementById('si-q').value);
+  if(!q||q<=0){toast('จำนวนไม่ถูกต้อง','warn');return;}
+  const m=MOCK.materials.find(x=>x.id===id);if(m)m.quantity+=q;
+  toast('รับวัสดุเข้าคลังสำเร็จ');closeModal();pageMaterials();
+}
+
+function openAddMatModal(){
+  openModal(`<div class="modal modal-lg"><div class="mh"><div class="mt">➕ เพิ่มวัสดุใหม่</div><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mb2">
+    <div class="frow"><div class="fg"><label class="fl">รหัสวัสดุ <span class="req">*</span></label><input class="fc" id="nm-c" placeholder="MAT011"></div><div class="fg"><label class="fl">ชื่อวัสดุ <span class="req">*</span></label><input class="fc" id="nm-n" placeholder="ชื่อวัสดุ"></div></div>
+    <div class="frow"><div class="fg"><label class="fl">หมวดหมู่ <span class="req">*</span></label><input class="fc" id="nm-cat" placeholder="ไฟฟ้า/ประปา/..."></div><div class="fg"><label class="fl">ยี่ห้อ</label><input class="fc" id="nm-b" placeholder="ยี่ห้อ"></div></div>
+    <div class="frow3"><div class="fg"><label class="fl">จำนวนเริ่มต้น</label><input class="fc" id="nm-q" type="number" value="0"></div><div class="fg"><label class="fl">หน่วย</label><input class="fc" id="nm-u" value="ชิ้น"></div><div class="fg"><label class="fl">ราคา/หน่วย</label><input class="fc" id="nm-p" type="number" value="0"></div></div>
+    <div class="fg"><label class="fl">Reorder Point</label><input class="fc" id="nm-r" type="number" value="5"></div>
+  </div>
+  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doAddMat()">✅ บันทึก</button></div></div>`);
+}
+
+function doAddMat(){
+  const code=document.getElementById('nm-c').value.trim();const name=document.getElementById('nm-n').value.trim();const category=document.getElementById('nm-cat').value.trim();
+  if(!code||!name||!category){toast('กรุณากรอกข้อมูลที่จำเป็น','warn');return;}
+  if(MOCK.materials.find(m=>m.code===code)){toast('รหัสวัสดุซ้ำ','err');return;}
+  MOCK.materials.push({id:MOCK.nextMatId++,code,name,category,brand:document.getElementById('nm-b').value||null,quantity:+document.getElementById('nm-q').value||0,unit:document.getElementById('nm-u').value||'ชิ้น',unit_price:+document.getElementById('nm-p').value||0,reorder_point:+document.getElementById('nm-r').value||5});
+  toast('เพิ่มวัสดุสำเร็จ');closeModal();pageMaterials();
+}
+
+/* ═══════════════════════════════════════
+   PAGE: USERS
+═══════════════════════════════════════ */
+function pageUsers(){
+  const c=document.getElementById('page-content');
+  const isAdmin=APP.user.role==='admin';
+  const users=MOCK.users;
+  const byRole={admin:0,manager:0,technician:0,user:0};
+  users.forEach(u=>byRole[u.role]=(byRole[u.role]||0)+1);
+
+  c.innerHTML=`
+  <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+    <div class="scard c-blue"><div class="scard-row"><div class="scard-ico">👥</div></div><div class="scard-val">${users.length}</div><div class="scard-lbl">ทั้งหมด</div><div class="scard-bar"></div></div>
+    <div class="scard c-red"><div class="scard-row"><div class="scard-ico">🛡️</div></div><div class="scard-val">${byRole.admin}</div><div class="scard-lbl">Admin</div><div class="scard-bar"></div></div>
+    <div class="scard c-violet"><div class="scard-row"><div class="scard-ico">📋</div></div><div class="scard-val">${byRole.manager}</div><div class="scard-lbl">Manager</div><div class="scard-bar"></div></div>
+    <div class="scard c-blue"><div class="scard-row"><div class="scard-ico">🔧</div></div><div class="scard-val">${byRole.technician}</div><div class="scard-lbl">ช่างซ่อม</div><div class="scard-bar"></div></div>
+    <div class="scard"><div class="scard-row"><div class="scard-ico" style="background:var(--wire);color:var(--chalk2)">👤</div></div><div class="scard-val" style="color:var(--chalk2)">${byRole.user}</div><div class="scard-lbl">ผู้ใช้งาน</div><div class="scard-bar" style="background:var(--wire)"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><div class="card-t">👥 รายชื่อผู้ใช้งาน</div></div>
+    <div class="tw"><table>
+      <thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>อีเมล</th><th>บทบาท</th><th>แผนก</th><th>เข้าใช้ล่าสุด</th><th>สถานะ</th>${isAdmin?'<th></th>':''}</tr></thead>
+      <tbody>${users.map(u=>`<tr${!u.is_active?' style="opacity:.45"':''}>
+        <td><span class="tid">${u.student_id||'–'}</span></td>
+        <td><strong>${u.name}</strong></td>
+        <td class="text-sm text-muted">${u.email}</td>
+        <td>${roleBadge(u.role)}</td>
+        <td class="text-sm">${u.department||'–'}</td>
+        <td class="text-xs text-muted">${timeAgo(u.last_login)}</td>
+        <td>${u.is_active?'<span class="badge b-green">✅ ใช้งาน</span>':'<span class="badge b-red">❌ ระงับ</span>'}</td>
+        ${isAdmin?`<td><button class="btn btn-ghost btn-sm" onclick="doToggleUser(${u.id})">${u.is_active?'ระงับ':'เปิดใช้'}</button></td>`:''}
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function doToggleUser(id){
+  const u=MOCK.users.find(x=>x.id===id);
+  if(!u)return;if(u.id===APP.user.id){toast('ไม่สามารถระงับบัญชีตัวเองได้','warn');return;}
+  u.is_active=u.is_active?0:1;toast(`${u.is_active?'เปิดใช้':'ระงับ'}บัญชี ${u.name} แล้ว`);pageUsers();
+}
+
+/* ═══════════════════════════════════════
+   PAGE: TRACK
+═══════════════════════════════════════ */
+function pageTrack(){
+  document.getElementById('page-content').innerHTML=`
+  <div style="max-width:600px;margin:0 auto">
+    <div class="card">
+      <div class="card-h"><div class="card-t">🔍 ติดตามสถานะงานซ่อม</div></div>
+      <div class="card-b">
+        <div class="fg"><label class="fl">หมายเลขติดตามงาน (Tracking ID)</label>
+          <div class="igrp"><input class="fc" id="ti" placeholder="TRK-2568-xxxx" style="font-family:var(--mono);letter-spacing:.05em" onkeydown="if(event.key==='Enter')doTrack()"><button class="btn btn-primary" onclick="doTrack()">🔍 ค้นหา</button></div>
+        </div>
+        <div style="margin-top:.75rem;padding:.75rem 1rem;background:var(--ink3);border-radius:var(--r);border:1px solid var(--wire)">
+          <div class="text-xs" style="color:var(--chalk3);margin-bottom:.5rem">ตัวอย่าง Tracking IDs</div>
+          <div class="flex gap1" style="flex-wrap:wrap">
+            ${MOCK.requests.map(r=>`<span class="badge b-blue" style="cursor:pointer" onclick="document.getElementById('ti').value='${r.tracking_id}'">${r.tracking_id}</span>`).join('')}
+          </div>
+        </div>
+        <div id="track-result"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function doTrack(){
+  const id=document.getElementById('ti').value.trim().toUpperCase();
+  const el=document.getElementById('track-result');
+  if(!id){el.innerHTML=`<div class="alert al-warn">⚠️ กรุณากรอก Tracking ID</div>`;return;}
+  const r=MOCK.requests.find(x=>x.tracking_id===id);
+  if(!r){el.innerHTML=`<div class="alert al-danger">❌ ไม่พบหมายเลขนี้ในระบบ</div>`;return;}
+  const statusOrder=['รอดำเนินการ','กำลังดำเนินการ','รอตรวจสอบ','เสร็จสมบูรณ์'];
+  const si=statusOrder.indexOf(r.status);
+  el.innerHTML=`
+    <div class="divider"></div>
+    <div class="track-box mb2">
+      <div class="text-xs" style="color:var(--chalk3);margin-bottom:.5rem">Tracking ID</div>
+      <div class="track-id">${r.tracking_id}</div>
+      <div class="flex gap2" style="justify-content:center;margin-top:.75rem">${uBadge(r.urgency)} ${sBadge(r.status)}</div>
+    </div>
+    <div class="g2 mb2" style="font-size:.8rem">
+      ${[['📂','ประเภท',`${catIcon(r.category)} ${r.category}`],['📍','สถานที่',r.location||'–'],['👷','ช่างซ่อม',r.tech_id?getUserName(r.tech_id):'ยังไม่ได้มอบหมาย'],['📅','กำหนด SLA',fmtDate(r.sla_deadline)]].map(([ico,l,v])=>`
+      <div style="padding:.625rem .875rem;background:var(--ink3);border-radius:var(--r);border:1px solid var(--wire)">
+        <div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">${ico} ${l}</div>
+        <div style="font-weight:600">${v}</div>
+      </div>`).join('')}
+    </div>
+    <p class="text-muted mb2" style="line-height:1.7">${r.description}</p>
+    <div class="tl">
+      ${statusOrder.map((s,i)=>`
+        <div class="tl-step">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div class="tl-dot ${i<si?'done':i===si?'curr':''}">${i<si?'✓':i+1}</div>
+            <div class="tl-lbl ${i<si?'done':i===si?'curr':''}">${s}</div>
+          </div>
+        </div>
+        ${i<statusOrder.length-1?`<div class="tl-line ${i<si?'done':''}"></div>`:''}`).join('')}
+    </div>
+    ${r.repair_detail?`<div class="alert al-info mt2">🔧 ${r.repair_detail}</div>`:''}`;
+}
+
+/* ═══════════════════════════════════════
+   PAGE: PROFILE
+═══════════════════════════════════════ */
+function pageProfile(){
+  const c=document.getElementById('page-content');
+  const u=APP.user;
+  const myR=MOCK.requests.filter(r=>r.requester_id===u.id||r.tech_id===u.id);
+  const myDone=myR.filter(r=>r.status==='เสร็จสมบูรณ์').length;
+  const myPend=myR.filter(r=>r.status==='รอดำเนินการ').length;
+
+  c.innerHTML=`
+  <div style="max-width:680px;margin:0 auto">
+    <div class="card mb">
+      <div class="card-b">
+        <div class="flex gap2 mb2">
+          <div style="width:60px;height:60px;border-radius:12px;background:linear-gradient(135deg,var(--spark),var(--violet));display:flex;align-items:center;justify-content:center;font-size:1.75rem;font-weight:900;color:#fff;flex-shrink:0">${u.name[0]}</div>
+          <div>
+            <div style="font-size:1.1rem;font-weight:800">${u.name}</div>
+            <div>${roleBadge(u.role)}</div>
+            <div class="text-muted text-xs mt1">เข้าสู่ระบบล่าสุด ${timeAgo(u.last_login)}</div>
+          </div>
+        </div>
+        <div class="g2" style="font-size:.8rem">
+          ${[['📧','อีเมล',u.email],['🎓','รหัสนักศึกษา',u.student_id||'–'],['🏫','แผนก',u.department||'–'],['📞','โทรศัพท์',u.phone||'–']].map(([ico,l,v])=>`
+          <div style="padding:.625rem .875rem;background:var(--ink3);border-radius:var(--r);border:1px solid var(--wire)">
+            <div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">${ico} ${l}</div>
+            <div style="font-weight:600">${v}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-grid mb">
+      <div class="scard c-blue"><div class="scard-row"><div class="scard-ico">📋</div></div><div class="scard-val">${myR.length}</div><div class="scard-lbl">งานทั้งหมด</div><div class="scard-bar"></div></div>
+      <div class="scard c-amber"><div class="scard-row"><div class="scard-ico">⏳</div></div><div class="scard-val">${myPend}</div><div class="scard-lbl">รอดำเนินการ</div><div class="scard-bar"></div></div>
+      <div class="scard c-green"><div class="scard-row"><div class="scard-ico">✅</div></div><div class="scard-val">${myDone}</div><div class="scard-lbl">เสร็จสมบูรณ์</div><div class="scard-bar"></div></div>
+    </div>
+
+    <div class="card mb">
+      <div class="card-h"><div class="card-t">✏️ แก้ไขข้อมูล</div></div>
+      <div class="card-b">
+        <div id="p-alert"></div>
+        <div class="frow"><div class="fg"><label class="fl">ชื่อ-นามสกุล</label><input class="fc" id="p-n" value="${u.name}"></div><div class="fg"><label class="fl">แผนก</label><input class="fc" id="p-d" value="${u.department||''}"></div></div>
+        <div class="fg"><label class="fl">โทรศัพท์</label><input class="fc" id="p-ph" value="${u.phone||''}"></div>
+        <button class="btn btn-primary" onclick="saveProfile()">💾 บันทึก</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="card-t">🔒 เปลี่ยนรหัสผ่าน</div></div>
+      <div class="card-b">
+        <div id="pw-alert"></div>
+        <div class="frow"><div class="fg"><label class="fl">รหัสผ่านเดิม</label><input class="fc" id="pw-o" type="password"></div><div class="fg"><label class="fl">รหัสผ่านใหม่ (≥6)</label><input class="fc" id="pw-n" type="password"></div></div>
+        <button class="btn btn-amber" onclick="changePw()">🔒 เปลี่ยนรหัสผ่าน</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function saveProfile(){
+  const u=APP.user;
+  u.name=document.getElementById('p-n').value;
+  u.department=document.getElementById('p-d').value;
+  u.phone=document.getElementById('p-ph').value;
+  document.getElementById('p-alert').innerHTML=`<div class="alert al-success">✅ บันทึกสำเร็จ</div>`;
+  const sbUname=document.getElementById('sb-uname');
+  if(sbUname){
+    sbUname.textContent=u.name;
+  }
+  const sbChipName=document.querySelector('.user-chip span');
+  if(sbChipName){
+    sbChipName.textContent=u.name.split(' ')[0];
+  }
+  toast('อัปเดตโปรไฟล์สำเร็จ');
+}
+
+function changePw(){
+  const old=document.getElementById('pw-o').value;const nw=document.getElementById('pw-n').value;
+  const el=document.getElementById('pw-alert');
+  if(!old||!nw){el.innerHTML=`<div class="alert al-warn">⚠️ กรุณากรอกให้ครบ</div>`;return;}
+  if(APP.user.password!==old){el.innerHTML=`<div class="alert al-danger">❌ รหัสผ่านเดิมไม่ถูกต้อง</div>`;return;}
+  if(nw.length<6){el.innerHTML=`<div class="alert al-warn">⚠️ รหัสผ่านต้องมีอย่างน้อย 6 ตัว</div>`;return;}
+  APP.user.password=nw;MOCK.users.find(u=>u.id===APP.user.id).password=nw;
+  el.innerHTML=`<div class="alert al-success">✅ เปลี่ยนรหัสผ่านสำเร็จ</div>`;
+  document.getElementById('pw-o').value='';document.getElementById('pw-n').value='';
+}
+
+/* ═══════════════════════════════════════
+   BOOT
+═══════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded',()=>showAuth());
+</script>
+</body>
+</html>
