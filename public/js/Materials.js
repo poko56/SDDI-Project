@@ -9,9 +9,10 @@ async function pageMaterials(){
   c.innerHTML = loadingState();
 
   try {
-    const items = await apiFetch('/materials');
-    const tb = items.reduce((sum,m)=>sum+m.stock,0);
-    const low = items.filter(m=>m.stock<=(m.min_stock||5));
+    const data = await apiFetch('/materials');
+    const items = data.items || [];
+    const tb = items.reduce((sum,m)=>sum+(m.quantity||0),0);
+    const low = items.filter(m=>(m.quantity||0)<=(m.reorder_point||5));
 
     c.innerHTML=`
     <div class="flex jb ic mb2">
@@ -29,14 +30,14 @@ async function pageMaterials(){
         <thead><tr><th>ชื่อวัสดุ/อุปกรณ์</th><th>รหัส</th><th>หมวดหมู่</th><th>คงเหลือ</th><th>หน่วย</th>${canEdit?'<th>จัดการ</th>':''}</tr></thead>
         <tbody id="mat-tb">
         ${items.length?items.map(m=>{
-          const isL=m.stock<=(m.min_stock||5);
+          const isL=(m.quantity||0)<=(m.reorder_point||5);
           return`<tr class="mat-tr" data-nm="${m.name.toLowerCase()}">
             <td><strong>${m.name}</strong>${isL?'<br><span class="badge b-red" style="font-size:.6rem;padding:2px 4px;margin-top:4px">⚠️ ใกล้หมด</span>':''}</td>
             <td class="mono text-xs">${m.code||'-'}</td>
             <td>${m.category||'-'}</td>
-            <td><span class="badge ${isL?'b-red':'b-green'}">${m.stock}</span></td>
+            <td><span class="badge ${isL?'b-red':'b-green'}">${m.quantity||0}</span></td>
             <td>${m.unit||'ชิ้น'}</td>
-            ${canEdit?`<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openStockModal('${m.id}','${m.name}',${m.stock})">+/- สต็อก</button><button class="btn btn-ghost btn-sm" onclick='openMatModal(${JSON.stringify(m).replace(/'/g,"&#39;")})'>✎ แก้ไข</button></td>`:''}
+            ${canEdit?`<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openStockModal('${m.id}','${m.name}',${m.quantity||0})">+/- สต็อก</button><button class="btn btn-ghost btn-sm" onclick='openMatModal(${JSON.stringify(m).replace(/'/g,"&#39;")})'>✎ แก้ไข</button></td>`:''}
           </tr>`;
         }).join(''):`<tr><td colspan="${canEdit?6:5}">${emptyState('📦','ไม่มีวัสดุในคลัง')}</td></tr>`}
         </tbody>
@@ -63,8 +64,8 @@ function openMatModal(m=null){
       <div class="fg"><label class="fl">หน่วยเรียก</label><input class="fc" id="m-un" value="${m?m.unit||'ชิ้น':'ชิ้น'}"></div>
     </div>
     <div class="frow" ${m?'style="display:none"':''}>
-      <div class="fg"><label class="fl">จำนวนตั้งต้น <span class="req">*</span></label><input class="fc" id="m-st" type="number" value="${m?m.stock:0}" min="0"></div>
-      <div class="fg"><label class="fl">จุดสั่งซื้อ (Min Stock)</label><input class="fc" id="m-min" type="number" value="${m?m.min_stock||5:5}" min="0"></div>
+      <div class="fg"><label class="fl">จำนวนตั้งต้น <span class="req">*</span></label><input class="fc" id="m-st" type="number" value="${m?m.quantity:0}" min="0"></div>
+      <div class="fg"><label class="fl">จุดสั่งซื้อ (Min Stock)</label><input class="fc" id="m-min" type="number" value="${m?m.reorder_point||5:5}" min="0"></div>
     </div>
   </div>
   <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveMat('${m?m.id:''}')">✅ บันทึก</button></div></div>`);
@@ -79,8 +80,8 @@ async function saveMat(id){
   
   const payload = { name, code, category: cat, unit: un };
   if(!id) {
-    payload.stock = parseInt(document.getElementById('m-st').value)||0;
-    payload.min_stock = parseInt(document.getElementById('m-min').value)||5;
+    payload.quantity = parseInt(document.getElementById('m-st').value)||0;
+    payload.reorder_point = parseInt(document.getElementById('m-min').value)||5;
   }
   
   try {
