@@ -2,7 +2,7 @@ const { onRequest } = require('firebase-functions/v2/https');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { getDb } = require('./db/database');
+// Removed getDb import
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -13,18 +13,21 @@ const isFirebase = process.env.FUNCTIONS_EMULATOR === 'true' || process.env.GCLO
 const uploadDir = isFirebase ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadDir));
 
+const { seedData } = require('./db/database');
+
 let isDbInitialized = false;
 
-// Middleware to ensure DB is initialized
+// Middleware to ensure DB is seeded
 app.use(async (req, res, next) => {
   if (!isDbInitialized) {
     try {
-      await getDb();
+      await seedData();
       isDbInitialized = true;
-      console.log('✅ Database initialized for Cloud Functions');
+      console.log('✅ Firestore seeding checked/completed');
     } catch (e) {
-      console.error('❌ Database init error', e);
-      return res.status(500).json({ error: 'Database initialization failed' });
+      console.error('❌ Firestore seeding error', e);
+      // Even if seed fails, let it pass so it doesn't break everything
+      isDbInitialized = true; 
     }
   }
   next();
@@ -47,4 +50,4 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 
-exports.api = onRequest(app);
+exports.api = onRequest({ cors: true, invoker: 'public' }, app);
