@@ -147,7 +147,7 @@ function pageNewRequest(navId){
           <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--chalk3);margin-bottom:.75rem">5. แนบรูปภาพ (ถ้ามี)</div>
           <div class="flex ic gap2" style="background:var(--ink3);padding:1rem;border-radius:var(--r);border:1px dashed var(--wire)">
             <label for="req-photo" class="btn btn-ghost" style="margin:0">📷 เลือกรูปภาพ</label>
-            <input type="file" id="req-photo" accept="image/*" style="display:none" onchange="previewImg(this, 'req-photo-preview')">
+            <input type="file" id="req-photo" accept="image/jpeg, image/png" style="display:none" onchange="previewImg(this, 'req-photo-preview')">
             <div id="req-photo-preview" class="text-xs text-muted">ไม่ได้เลือกไฟล์</div>
           </div>
         </div>
@@ -195,7 +195,7 @@ async function submitReq(navId){
     const photoInput = document.getElementById('req-photo');
     if (photoInput && photoInput.files[0]) {
       const f = photoInput.files[0];
-      if (!f.type.startsWith('image/')) { toast('กรุณาเลือกเฉพาะไฟล์รูปภาพ', 'warn'); btn.disabled = false; btn.innerHTML = '📨 ส่งคำขอแจ้งซ่อม'; return; }
+      if (!['image/jpeg', 'image/png'].includes(f.type)) { toast('กรุณาเลือกเฉพาะไฟล์ JPG หรือ PNG เท่านั้น', 'warn'); btn.disabled = false; btn.innerHTML = '📨 ส่งคำขอแจ้งซ่อม'; return; }
       if (f.size > 5 * 1024 * 1024) { toast('ขนาดรูปภาพต้องไม่เกิน 5MB', 'warn'); btn.disabled = false; btn.innerHTML = '📨 ส่งคำขอแจ้งซ่อม'; return; }
       const uploadRes = await uploadMedia(f);
       photoUrl = uploadRes.url;
@@ -363,7 +363,7 @@ function openStatusModal(reqId){
         <label class="fl">📸 รูปก่อนซ่อม</label>
         <div class="flex ic gap1" style="background:var(--ink3);padding:.5rem;border-radius:var(--r);border:1px dashed var(--wire)">
           <label for="img-before" class="btn btn-ghost btn-xs">📁 เลือก</label>
-          <input type="file" id="img-before" accept="image/*" style="display:none" onchange="previewImg(this, 'pre-before')">
+          <input type="file" id="img-before" accept="image/jpeg, image/png" style="display:none" onchange="previewImg(this, 'pre-before')">
           <div id="pre-before" class="text-xs"></div>
         </div>
       </div>
@@ -371,7 +371,7 @@ function openStatusModal(reqId){
         <label class="fl">📸 รูปหลังซ่อม</label>
         <div class="flex ic gap1" style="background:var(--ink3);padding:.5rem;border-radius:var(--r);border:1px dashed var(--wire)">
           <label for="img-after" class="btn btn-ghost btn-xs">📁 เลือก</label>
-          <input type="file" id="img-after" accept="image/*" style="display:none" onchange="previewImg(this, 'pre-after')">
+          <input type="file" id="img-after" accept="image/jpeg, image/png" style="display:none" onchange="previewImg(this, 'pre-after')">
           <div id="pre-after" class="text-xs"></div>
         </div>
       </div>
@@ -391,7 +391,7 @@ async function doUpdateStatus(reqId){
 
     const validate = (f) => {
       if (!f) return true;
-      if (!f.type.startsWith('image/')) { toast('กรุณาเลือกเฉพาะไฟล์รูปภาพเท่านั้น', 'warn'); return false; }
+      if (!['image/jpeg', 'image/png'].includes(f.type)) { toast('กรุณาเลือกเฉพาะไฟล์ JPG หรือ PNG เท่านั้น', 'warn'); return false; }
       if (f.size > 5 * 1024 * 1024) { toast('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB', 'warn'); return false; }
       return true;
     };

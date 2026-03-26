@@ -17,22 +17,64 @@ async function apiFetch(endpoint, options = {}) {
     delete headers['Content-Type']; 
   }
 
-  // Use the navigation signal if available, unless overridden
   const signal = options.signal || NAV_ABORT_CONTROLLER?.signal;
 
   try {
     const res = await fetch(getApiUrl(endpoint), { ...options, signal, headers: { ...headers, ...options.headers } });
+    
+    // Handle specific HTTP Status Codes before parsing JSON
+    if (res.status === 401) {
+      // Force logout on 401 Unauthorized
+      localStorage.removeItem('APP_TOKEN');
+      localStorage.removeItem('APP_DATA');
+      if (!window.location.pathname.endsWith('index.html')) {
+        window.location.href = 'index.html?err=session_expired';
+      }
+      throw new Error('session_expired');
+    }
+
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Server Error');
+    if (!res.ok) throw new Error(data.error || 'server_error');
     return data;
   } catch (err) {
     if (err.name === 'AbortError') {
       console.log('Fetch aborted:', endpoint);
-      return new Promise(() => {}); // Return a never-resolving promise to stop further execution in the caller
+      return new Promise(() => {}); 
     }
+    // Wrap the error with a friendly Thai message
+    err.message = translateError(err.message);
     throw err;
   }
 }
+
+function translateError(msg) {
+  const m = {
+    'session_expired': 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่',
+    'Failed to fetch': 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ต',
+    'NetworkError when attempting to fetch resource': 'การเชื่อมต่อเครือข่ายขัดข้อง',
+    'Forbidden': 'คุณไม่มีสิทธิ์เข้าถึงส่วนนี้',
+    'Unauthorized': 'กรุณาเข้าสู่ระบบก่อน',
+    'Not Found': 'ไม่พบข้อมลที่ต้องการ',
+    'server_error': 'ระบบขัดข้องทางเทคนิค กรุณาลองใหม่อีกครั้ง',
+    'Unexpected token': 'เซิร์ฟเวอร์ตอบสนองผิดพลาด (Format Error)',
+    'ขนาดไฟล์เกินกำหนด (สูงสุด 5MB)': 'รูปภาพมีขนาดใหญ่เกินไป (สูงสุด 5MB)',
+    'อนุญาตให้อัปโหลดเฉพาะไฟล์ JPG และ PNG เท่านั้น': 'รองรับเฉพาะไฟล์รูปภาพ .jpg และ .png เท่านั้น'
+  };
+  // Partial matching for common browser errors
+  if (msg.includes('Failed to fetch')) return m['Failed to fetch'];
+  if (msg.includes('NetworkError')) return m['NetworkError when attempting to fetch resource'];
+  if (msg.includes('Unexpected token')) return m['Unexpected token'];
+  
+  return m[msg] || msg;
+}
+
+// Global crash protection for unhandled errors
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.name !== 'AbortError') {
+    const msg = translateError(event.reason.message || String(event.reason));
+    toast(msg, 'err');
+  }
+});
 
 async function uploadMedia(file) {
   const formData = new FormData();

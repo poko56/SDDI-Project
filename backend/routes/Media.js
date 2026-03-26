@@ -20,10 +20,10 @@ router.post('/upload', authenticate, (req, res) => {
     busboy.on('file', (name, file, info) => {
       const { filename, encoding, mimeType } = info;
       
-      // Enforce image-only check
-      if (!mimeType.startsWith('image/')) {
+      // Enforce JPG & PNG only check
+      if (!['image/jpeg', 'image/png'].includes(mimeType)) {
         file.resume(); // Skip this file
-        return res.status(400).json({ error: 'อนุญาตให้อัปโหลดเฉพาะไฟล์รูปภาพเท่านั้น' });
+        return res.status(400).json({ error: 'อนุญาตให้อัปโหลดเฉพาะไฟล์ JPG และ PNG เท่านั้น' });
       }
 
       fileFound = true;
