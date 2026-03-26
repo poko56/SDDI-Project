@@ -152,6 +152,15 @@ function pageNewRequest(){
           <input type="hidden" id="req-urg">
         </div>
 
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--chalk3);margin-bottom:.75rem">5. แนบรูปภาพ (ถ้ามี)</div>
+          <div class="flex ic gap2" style="background:var(--ink3);padding:1rem;border-radius:var(--r);border:1px dashed var(--wire)">
+            <label for="req-photo" class="btn btn-ghost" style="margin:0">📷 เลือกรูปภาพ</label>
+            <input type="file" id="req-photo" style="display:none" onchange="previewImg(this, 'req-photo-preview')">
+            <div id="req-photo-preview" class="text-xs text-muted">ไม่ได้เลือกไฟล์</div>
+          </div>
+        </div>
+
         <div style="display:flex;gap:.5rem;justify-content:flex-end">
           <button class="btn btn-ghost" onclick="switchPage('requests-list')">ยกเลิก</button>
           <button class="btn btn-primary btn-lg" onclick="submitReq()" id="btn-submit-req">📨 ส่งคำขอแจ้งซ่อม</button>
@@ -195,13 +204,21 @@ async function submitReq(){
   document.getElementById('btn-submit-req').innerHTML = 'กำลังบันทึก...';
   
   try {
-    const fd = new FormData();
-    fd.append('category', cat);
-    fd.append('description', desc);
-    fd.append('urgency', urg);
-    fd.append('location_detail', locationStr);
-    
-    const res = await apiFetch('/requests', { method:'POST', body: fd });
+    let photoUrl = null;
+    const photoInput = document.getElementById('req-photo');
+    if (photoInput && photoInput.files[0]) {
+      const uploadRes = await uploadMedia(photoInput.files[0]);
+      photoUrl = uploadRes.url;
+    }
+
+    const res = await apiFetch('/requests', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        category: cat, description: desc, urgency: urg, 
+        location_detail: locationStr,
+        image_urls: photoUrl ? [photoUrl] : [] 
+      })
+    });
     document.getElementById('page-content').innerHTML=`
       <div style="max-width:480px;margin:4rem auto;text-align:center">
         <div style="font-size:5rem;margin-bottom:1.5rem;animation:float 2s ease infinite">✅</div>
@@ -248,6 +265,7 @@ async function pageRequestDetail(id){
       <div class="flex ic jb mb2" style="flex-wrap:wrap;gap:.5rem">
         <button class="btn btn-ghost btn-sm" onclick="switchPage('requests-list')">← กลับ</button>
         <div class="flex gap1 ic" style="flex-wrap:wrap">
+          ${canAssign?`<button class="btn btn-spark btn-sm" onclick="doAutoAssign('${r.id}')" id="btn-auto-assign">🤖 Auto-Assign</button>`:''}
           ${canAssign?`<button class="btn btn-primary btn-sm" onclick="openAssignModal('${r.id}','${r.tracking_id}')">👷 มอบหมายช่าง</button>`:''}
           ${canTech&&r.status!=='เสร็จสมบูรณ์'?`<button class="btn btn-amber btn-sm" onclick="openStatusModal('${r.id}')">🔄 อัปเดตสถานะ</button>`:''}
           ${canEval?`<button class="btn btn-primary btn-sm" style="background:var(--amber);color:#000;border-color:var(--amber)" onclick="openEvalModal('${r.id}')">⭐ ประเมินงาน</button>`:''}
@@ -266,10 +284,31 @@ async function pageRequestDetail(id){
             <div><div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">ช่างที่รับผิดชอบ</div><div style="font-weight:700">${r.tech_name?r.tech_name:'– ยังไม่ได้มอบหมาย –'}</div></div>
             <div><div class="text-xs" style="color:var(--chalk3);margin-bottom:3px">กำหนด SLA</div><div style="font-weight:700;color:${overdue?'var(--red)':'inherit'}">${fmtDate(r.sla_deadline)}</div></div>
           </div>
-          <div class="divider"></div>
           <div class="text-xs" style="color:var(--chalk3);margin-bottom:5px">รายละเอียดปัญหา</div>
           <p style="line-height:1.8;font-size:.85rem">${r.description}</p>
           ${r.repair_detail?`<div class="alert al-info mt2">🔧 <strong>รายละเอียดการซ่อม:</strong> ${r.repair_detail}</div>`:''}
+
+          <!-- Media Section -->
+          ${(r.image_urls?.length || r.before_images?.length || r.after_images?.length) ? `
+          <div class="divider"></div>
+          <div class="text-xs" style="color:var(--chalk3);margin-bottom:10px">📷 รูปภาพหลักฐาน (Evidence)</div>
+          <div class="flex gap2" style="flex-wrap:wrap">
+            ${(r.image_urls||[]).map(url => `
+              <div class="img-thumb" onclick="openImgModal('${url}')">
+                <img src="${url}">
+                <div class="img-lbl">รูปแจ้งซ่อม</div>
+              </div>`).join('')}
+            ${(r.before_images||[]).map(url => `
+              <div class="img-thumb" onclick="openImgModal('${url}')">
+                <img src="${url}">
+                <div class="img-lbl" style="background:var(--amber);color:#000">ก่อนซ่อม</div>
+              </div>`).join('')}
+            ${(r.after_images||[]).map(url => `
+              <div class="img-thumb" onclick="openImgModal('${url}')">
+                <img src="${url}">
+                <div class="img-lbl" style="background:var(--green)">หลังซ่อม</div>
+              </div>`).join('')}
+          </div>` : ''}
         </div>
       </div>
 
@@ -290,6 +329,25 @@ async function pageRequestDetail(id){
             <div>📅 มอบหมาย: <strong style="color:var(--chalk)">${fmtDate(r.assigned_at)}</strong></div>
             <div>✅ เสร็จ: <strong style="color:var(--chalk)">${fmtDate(r.completed_at)}</strong></div>
           </div>
+        </div>
+      </div>
+
+      <div class="card mb">
+        <div class="card-h"><div class="card-t">📦 วัสดุที่ใช้ในการซ่อม</div>${(canTech || canManager)?`<button class="btn btn-primary btn-xs" onclick="openWithdrawModal('${r.id}')">เบิกวัสดุ</button>`:''}</div>
+        <div class="card-b" id="material-list-container">
+          ${(r.materials_used && r.materials_used.length) ? `
+            <div class="tw"><table>
+              <thead><tr><th>วัสดุ</th><th class="tr">จำนวน</th><th class="tr">วันที่เบิก</th><th></th></tr></thead>
+              <tbody>
+                ${r.materials_used.map(m=>`<tr>
+                  <td>${m.material_name}</td>
+                  <td class="tr">${m.quantity_used} ${m.unit}</td>
+                  <td class="tr text-xs text-muted">${fmtDate(m.withdrawn_at,true)}</td>
+                  <td class="tr">${(canTech || canManager)?`<button class="btn btn-ghost btn-xs text-red" onclick="deleteWithdraw('${r.id}','${m.id}')">🗑️</button>`:''}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table></div>
+          ` : `<div style="padding:1rem;color:var(--chalk3);font-size:.875rem" class="tc">ยังไม่มีการเบิกวัสดุ</div>`}
         </div>
       </div>
 
@@ -319,18 +377,55 @@ function openStatusModal(reqId){
       <select class="fc" id="ns"><option>กำลังดำเนินการ</option><option>รอตรวจสอบ</option><option>เสร็จสมบูรณ์</option><option>ต้องส่งซ่อมภายนอก</option></select>
     </div>
     <div class="fg"><label class="fl">รายละเอียดการดำเนินการ</label><textarea class="fc" id="rd" rows="4" placeholder="อธิบายสิ่งที่ทำ..."></textarea></div>
+    
+    <div class="g2">
+      <div class="fg">
+        <label class="fl">📸 รูปก่อนซ่อม</label>
+        <div class="flex ic gap1" style="background:var(--ink3);padding:.5rem;border-radius:var(--r);border:1px dashed var(--wire)">
+          <label for="img-before" class="btn btn-ghost btn-xs">📁 เลือก</label>
+          <input type="file" id="img-before" style="display:none" onchange="previewImg(this, 'pre-before')">
+          <div id="pre-before" class="text-xs"></div>
+        </div>
+      </div>
+      <div class="fg">
+        <label class="fl">📸 รูปหลังซ่อม</label>
+        <div class="flex ic gap1" style="background:var(--ink3);padding:.5rem;border-radius:var(--r);border:1px dashed var(--wire)">
+          <label for="img-after" class="btn btn-ghost btn-xs">📁 เลือก</label>
+          <input type="file" id="img-after" style="display:none" onchange="previewImg(this, 'pre-after')">
+          <div id="pre-after" class="text-xs"></div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doUpdateStatus('${reqId}')">✅ บันทึก</button></div></div>`);
+  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" id="btn-up-stat" onclick="doUpdateStatus('${reqId}')">✅ บันทึก</button></div></div>`);
 }
 
 async function doUpdateStatus(reqId){
   const status=document.getElementById('ns').value;const rd=document.getElementById('rd').value;
+  const btn = document.getElementById('btn-up-stat');
+  
+  btn.disabled = true; btn.innerHTML = 'กำลังบันทึก...';
+  
   try {
-    const res = await apiFetch(`/requests/${reqId}/status`, { method:'PATCH', body:JSON.stringify({ status, repair_detail:rd }) });
+    let beforeUrl = null, afterUrl = null;
+    const fBefore = document.getElementById('img-before').files[0];
+    const fAfter = document.getElementById('img-after').files[0];
+    
+    if (fBefore) { const res = await uploadMedia(fBefore); beforeUrl = res.url; }
+    if (fAfter) { const res = await uploadMedia(fAfter); afterUrl = res.url; }
+
+    const body = { status, repair_detail:rd };
+    if (beforeUrl) body.before_images = [beforeUrl];
+    if (afterUrl) body.after_images = [afterUrl];
+
+    const res = await apiFetch(`/requests/${reqId}/status`, { method:'PATCH', body:JSON.stringify(body) });
     toast(res.message);
     closeModal();
     pageRequestDetail(reqId);
-  } catch(e){ toast(e.message, 'err'); }
+  } catch(e){ 
+    toast(e.message, 'err'); 
+    btn.disabled = false; btn.innerHTML = '✅ บันทึก';
+  }
 }
 
 function openEvalModal(reqId){
@@ -414,5 +509,70 @@ async function doTrack(){
       ${r.repair_detail?`<div class="alert al-info mt2">🔧 ${r.repair_detail}</div>`:''}`;
   } catch(e) {
     el.innerHTML=`<div class="alert al-danger">❌ ${e.message}</div>`;
+  }
+}
+
+/* ═══════════════════════════════════════
+   MATERIAL WITHDRAWAL HELPERS
+═══════════════════════════════════════ */
+async function openWithdrawModal(reqId) {
+  try {
+    const data = await apiFetch('/materials');
+    const mats = data.items.filter(m => m.quantity > 0);
+    openModal(`<div class="modal"><div class="mh"><div class="mt">📦 เบิกวัสดุอุปกรณ์</div><button class="mx" onclick="closeModal()">✕</button></div>
+    <div class="mb2">
+      <div class="fg"><label class="fl">วัสดุในคลัง <span class="req">*</span></label>
+        <select class="fc" id="w-mat" onchange="upWUnit()">
+          <option value="">-- เลือกวัสดุ --</option>
+          ${mats.map(m=>`<option value="${m.id}" data-unit="${m.unit}" data-qty="${m.quantity}">${m.name} [คงเหลือ: ${m.quantity} ${m.unit}]</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg"><label class="fl">จำนวนที่ใช้ <span class="req">*</span></label>
+        <div class="igrp"><input type="number" class="fc" id="w-qty" step="0.1" min="0.1"><span class="btn btn-ghost" style="pointer-events:none" id="w-unit-lbl">-</span></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doWithdraw('${reqId}')">✅ ยืนยันการเบิก</button></div></div>`);
+  } catch(e){ toast('โหลดรายการวัสดุไม่สำเร็จ ' + e.message, 'err'); }
+}
+
+function upWUnit() {
+  const sel = document.getElementById('w-mat');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('w-unit-lbl').innerText = opt.dataset.unit || '-';
+}
+
+async function doWithdraw(reqId) {
+  const mid = document.getElementById('w-mat').value;
+  const qty = document.getElementById('w-qty').value;
+  if(!mid || !qty) { toast('กรุณากรอกข้อมูลให้ครบ', 'warn'); return; }
+  try {
+    const res = await apiFetch(`/requests/${reqId}/materials`, { method:'POST', body:JSON.stringify({ material_id: mid, quantity_used: qty }) });
+    toast(res.message);
+    closeModal();
+    pageRequestDetail(reqId);
+  } catch(e){ toast(e.message, 'err'); }
+}
+
+async function deleteWithdraw(reqId, mid) {
+  if(!confirm('ยืนยันระบบการยกเลิกการเบิกวัสดุ? (จะคืนสต็อกเข้าคลัง)')) return;
+  try {
+    const res = await apiFetch(`/requests/${reqId}/materials/${mid}`, { method:'DELETE' });
+    toast(res.message);
+    pageRequestDetail(reqId);
+  } catch(e){ toast(e.message, 'err'); }
+}
+
+async function doAutoAssign(reqId) {
+  const btn = document.getElementById('btn-auto-assign');
+  btn.disabled = true;
+  btn.innerHTML = '🤖 ประมวลผล...';
+  try {
+    const res = await apiFetch(`/requests/${reqId}/auto-assign`, { method:'POST' });
+    toast(res.message);
+    pageRequestDetail(reqId);
+  } catch(e){ 
+    toast(e.message, 'err');
+    btn.disabled = false;
+    btn.innerHTML = '🤖 Auto-Assign';
   }
 }

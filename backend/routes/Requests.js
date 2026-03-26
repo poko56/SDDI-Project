@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { db, Timestamp } = require('../db/database');
 const { authenticate, authorize } = require('../middleware/auth');
+const NS = require('../services/NotificationService');
 
 const isFirebase = process.env.FUNCTIONS_EMULATOR === 'true' || process.env.GCLOUD_PROJECT || process.env.FUNCTION_TARGET || process.env.K_SERVICE;
 const uploadDir = isFirebase ? path.join('/tmp', 'uploads') : path.join(__dirname, '../../uploads');
@@ -170,10 +171,25 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-router.post('/', authenticate, upload.single('image'), async (req, res) => {
+// Conditional upload: skip multer when Content-Type is JSON (Firebase Functions truncates multipart)
+function conditionalUpload(req, res, next) {
+  const ct = req.headers['content-type'] || '';
+  if (ct.includes('application/json') || !ct.includes('multipart')) return next();
+  upload.single('image')(req, res, next);
+}
+
+router.post('/', authenticate, conditionalUpload, async (req, res) => {
   try {
     const { category, location_id, location_detail, description, urgency } = req.body;
+    
+    // Feature 1: Type & Value Validation
+    const validCats = ['ไฟฟ้า','ประปา','โครงสร้าง','อุปกรณ์อิเล็กทรอนิกส์','เครื่องปรับอากาศ','อื่นๆ'];
+    const validUrgencies = ['ฉุกเฉิน','เร่งด่วน','ปกติ','ไม่เร่งด่วน'];
+    
     if (!category || !description || !urgency) return res.status(400).json({ error: 'กรุณากรอกข้อมูลที่จำเป็น' });
+    if (!validCats.includes(category)) return res.status(400).json({ error: 'หมวดหมู่ไม่ถูกต้อง' });
+    if (!validUrgencies.includes(urgency)) return res.status(400).json({ error: 'ระดับความเร่งด่วนไม่ถูกต้อง' });
+    if (description.length < 5) return res.status(400).json({ error: 'กรุณาอธิบายรายละเอียดการแจ้งซ่อมอย่างน้อย 5 ตัวอักษร' });
 
     const newRef = db.collection('repair_requests').doc();
     const tid = genTracking();
@@ -182,24 +198,27 @@ router.post('/', authenticate, upload.single('image'), async (req, res) => {
       tracking_id: tid,
       requester_id: String(req.user.id),
       category,
-      location_id: location_id || null, // Keeping for backward compat, though frontend saves string to 'location' usually
-      location: location_detail || null, // Adapted for new frontend UI
+      location_id: location_id || null,
+      location: location_detail || null,
       description,
       urgency,
       status: 'รอดำเนินการ',
       image_path: req.file ? `/uploads/${req.file.filename}` : null,
+      image_urls: req.body.image_urls || [],
       sla_deadline: slaDeadline(urgency),
       created_at: Timestamp.now(),
       assigned_tech_id: null,
       assigned_at: null,
       completed_at: null,
       started_at: null,
-      repair_detail: null
+      repair_detail: null,
+      before_images: [],
+      after_images: []
     };
     
     await newRef.set(reqData);
     
-    // Notifications
+    // In-app notifications
     const mSnap = await db.collection('users').where('role', 'in', ['manager', 'admin']).where('is_active', '==', 1).get();
     const batch = db.batch();
     mSnap.docs.forEach(doc => {
@@ -218,11 +237,45 @@ router.post('/', authenticate, upload.single('image'), async (req, res) => {
     });
     await batch.commit();
 
-    res.status(201).json({ message:'แจ้งซ่อมสำเร็จ', tracking_id:tid, id:newRef.id });
+    // 🔔 Real Email/SMS notifications (async, non-blocking)
+    NS.notifyNewRequest(reqData, req.user).catch(()=>{});
+
+    // ── Check if Auto-Assign is enabled ─────────────────────────────────────
+    const settingsDoc = await db.collection('settings').doc('notifications').get();
+    const isAutoAssign = settingsDoc.exists && settingsDoc.data().auto_assign_enabled;
+
+    if (isAutoAssign) {
+      try {
+        // Find best technician
+        const techSnap = await db.collection('users').where('role', '==', 'technician').where('is_active', '==', 1).get();
+        if(!techSnap.empty) {
+          const activeJobsSnap = await db.collection('repair_requests').where('status','in',['รอดำเนินการ','กำลังดำเนินการ']).get();
+          const jobCount = {};
+          activeJobsSnap.docs.forEach(d => { const tid = d.data().assigned_tech_id; if(tid) jobCount[tid] = (jobCount[tid]||0)+1; });
+          
+          let chosen = null, min = Infinity;
+          techSnap.docs.forEach(d => { const c = jobCount[d.id]||0; if(c < min){ min = c; chosen = { id: d.id, ...d.data() }; } });
+
+          if (chosen) {
+            await newRef.update({ assigned_tech_id: chosen.id, assigned_at: Timestamp.now(), status: 'กำลังดำเนินการ' });
+            NS.notifyAssigned(reqData, chosen).catch(()=>{});
+            
+            await db.collection('audit_logs').add({
+              user_id: 'SYSTEM', action: 'AUTO_ASSIGN', target_table: 'repair_requests', target_id: newRef.id,
+              detail: `Auto-assign งาน ${tid} ให้ ${chosen.name} (งานปัจจุบัน: ${min})`, created_at: Timestamp.now()
+            });
+          }
+        }
+      } catch(e) { console.error('Auto-assign failed:', e.message); }
+    }
+
+    res.status(201).json({ message:'แจ้งซ่อมสำเร็จ' + (isAutoAssign ? ' และมอบหมายงานอัตโนมัติแล้ว' : ''), tracking_id:tid, id:newRef.id });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 router.patch('/:id/assign', authenticate, authorize('manager','admin'), async (req, res) => {
   try {
@@ -252,6 +305,10 @@ router.patch('/:id/assign', authenticate, authorize('manager','admin'), async (r
     });
     await batch.commit();
 
+    // 🔔 Real Email/SMS notifications
+    const rData2 = rDoc.data();
+    NS.notifyAssigned({ ...rData2, id: rDoc.id }, tDoc.data()).catch(()=>{});
+
     res.json({ message:`มอบหมายให้ ${tDoc.data().name} สำเร็จ` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -277,6 +334,8 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     if (status === 'กำลังดำเนินการ' && !rData.started_at) updates.started_at = Timestamp.now();
     if (status === 'เสร็จสมบูรณ์') updates.completed_at = Timestamp.now();
     if (repair_detail) updates.repair_detail = repair_detail;
+    if (req.body.before_images) updates.before_images = req.body.before_images;
+    if (req.body.after_images) updates.after_images = req.body.after_images;
 
     await reqRef.update(updates);
 
@@ -284,12 +343,141 @@ router.patch('/:id/status', authenticate, async (req, res) => {
       await db.collection('notifications').add({
          user_id: rData.requester_id, title: 'งานซ่อมเสร็จแล้ว', message: `งาน ${rData.tracking_id} เสร็จสมบูรณ์แล้ว กรุณาประเมินผล`, type: 'success', ref_request_id: rDoc.id, is_read: 0, created_at: Timestamp.now()
       });
+      NS.notifyCompleted({ ...rData, id: rDoc.id }).catch(()=>{});
     }
 
     res.json({ message: 'อัปเดตสถานะสำเร็จ' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+/* ══════════════════════════════════════════════════
+   MATERIAL WITHDRAWAL PER REPAIR  (Feature 2)
+   GET  /requests/:id/materials
+   POST /requests/:id/materials
+   DELETE /requests/:id/materials/:mid
+══════════════════════════════════════════════════ */
+router.get('/:id/materials', authenticate, async (req, res) => {
+  try {
+    const snap = await db.collection('material_usage')
+      .where('request_id', '==', req.params.id)
+      .orderBy('withdrawn_at', 'desc').get();
+    const items = snap.docs.map(d => {
+      const data = d.data();
+      Object.keys(data).forEach(k => { if (data[k]?.toDate) data[k] = data[k].toDate().toISOString(); });
+      return { id: d.id, ...data };
+    });
+    res.json(items);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/:id/materials', authenticate, authorize('technician','manager','admin'), async (req, res) => {
+  try {
+    const { material_id, quantity_used } = req.body;
+    if (!material_id || !quantity_used) return res.status(400).json({ error: 'กรุณาระบุวัสดุและจำนวน' });
+    const qty = parseFloat(quantity_used);
+    if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: 'จำนวนต้องมากกว่า 0' });
+
+    // Check request exists
+    const reqDoc = await db.collection('repair_requests').doc(req.params.id).get();
+    if (!reqDoc.exists) return res.status(404).json({ error: 'ไม่พบงานซ่อม' });
+
+    // Check & deduct material stock
+    const matRef = db.collection('materials').doc(material_id);
+    const matDoc = await matRef.get();
+    if (!matDoc.exists) return res.status(404).json({ error: 'ไม่พบวัสดุ' });
+    const mat = matDoc.data();
+    if ((mat.quantity || 0) < qty) return res.status(400).json({ error: `สต็อกไม่พอ (เหลือ ${mat.quantity} ${mat.unit})` });
+
+    await matRef.update({ quantity: (mat.quantity || 0) - qty });
+
+    const ref = db.collection('material_usage').doc();
+    const record = {
+      id: ref.id, request_id: req.params.id,
+      material_id, material_name: mat.name, unit: mat.unit || '',
+      quantity_used: qty,
+      withdrawn_by: String(req.user.id), withdrawn_by_name: req.user.name || req.user.email,
+      withdrawn_at: Timestamp.now()
+    };
+    await ref.set(record);
+
+    await db.collection('audit_logs').add({
+      user_id: String(req.user.id), action: 'WITHDRAW_MATERIAL',
+      target_table: 'material_usage', target_id: ref.id,
+      detail: `เบิก ${mat.name} x${qty} สำหรับงาน ${reqDoc.data().tracking_id}`,
+      created_at: Timestamp.now()
+    });
+
+    res.status(201).json({ message: `เบิก ${mat.name} x${qty} สำเร็จ`, id: ref.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/:id/materials/:mid', authenticate, authorize('technician','manager','admin'), async (req, res) => {
+  try {
+    const usageDoc = await db.collection('material_usage').doc(req.params.mid).get();
+    if (!usageDoc.exists) return res.status(404).json({ error: 'ไม่พบรายการเบิก' });
+    const usage = usageDoc.data();
+
+    // Restore stock
+    const matRef = db.collection('materials').doc(usage.material_id);
+    const matDoc = await matRef.get();
+    if (matDoc.exists) {
+      await matRef.update({ quantity: (matDoc.data().quantity || 0) + usage.quantity_used });
+    }
+    await db.collection('material_usage').doc(req.params.mid).delete();
+    res.json({ message: 'ยกเลิกรายการเบิกสำเร็จ (คืนสต็อกแล้ว)' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* ══════════════════════════════════════════════════
+   AUTO-ASSIGN  (Feature 3)
+   POST /requests/:id/auto-assign
+   Assigns the technician with fewest active jobs
+══════════════════════════════════════════════════ */
+router.post('/:id/auto-assign', authenticate, authorize('manager','admin'), async (req, res) => {
+  try {
+    const reqRef = db.collection('repair_requests').doc(req.params.id);
+    const reqDoc = await reqRef.get();
+    if (!reqDoc.exists) return res.status(404).json({ error: 'ไม่พบงานซ่อม' });
+    if (reqDoc.data().assigned_tech_id) return res.status(400).json({ error: 'งานนี้มีช่างรับผิดชอบแล้ว' });
+
+    // Get all active technicians
+    const techSnap = await db.collection('users')
+      .where('role', '==', 'technician')
+      .where('is_active', '==', 1).get();
+    if (techSnap.empty) return res.status(404).json({ error: 'ไม่พบช่างที่ active' });
+
+    // Count active jobs per technician
+    const activeSnap = await db.collection('repair_requests')
+      .where('status', 'in', ['รอดำเนินการ','กำลังดำเนินการ']).get();
+    const jobCount = {};
+    activeSnap.docs.forEach(d => {
+      const tid = d.data().assigned_tech_id;
+      if (tid) jobCount[tid] = (jobCount[tid] || 0) + 1;
+    });
+
+    // Pick tech with fewest jobs (round-robin)
+    let chosenTech = null, minJobs = Infinity;
+    techSnap.docs.forEach(d => {
+      const cnt = jobCount[d.id] || 0;
+      if (cnt < minJobs) { minJobs = cnt; chosenTech = { id: d.id, ...d.data() }; }
+    });
+
+    if (!chosenTech) return res.status(404).json({ error: 'ไม่สามารถหาช่างได้' });
+
+    await reqRef.update({ assigned_tech_id: chosenTech.id, assigned_at: Timestamp.now(), status: 'กำลังดำเนินการ' });
+
+    await db.collection('audit_logs').add({
+      user_id: String(req.user.id), action: 'AUTO_ASSIGN',
+      target_table: 'repair_requests', target_id: req.params.id,
+      detail: `Auto-assign งาน ${reqDoc.data().tracking_id} → ${chosenTech.name} (งานปัจจุบัน: ${minJobs})`,
+      created_at: Timestamp.now()
+    });
+
+    NS.notifyAssigned(reqDoc.data(), chosenTech).catch(() => {});
+    res.json({ message: `มอบหมายงานให้ ${chosenTech.name} อัตโนมัติสำเร็จ (งานปัจจุบัน: ${minJobs})`, tech: { id: chosenTech.id, name: chosenTech.name } });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

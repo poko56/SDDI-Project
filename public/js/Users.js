@@ -22,8 +22,8 @@ async function pageUsers(){
           ${users.map(u=>`<tr>
             <td>
               <div class="flex ic gap2">
-                <div style="width:32px;height:32px;background:var(--spark2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff">${u.name[0]}</div>
-                <strong>${u.name}</strong>
+                <div style="width:32px;height:32px;background:var(--spark2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff">${(u.name||u.email||'?')[0].toUpperCase()}</div>
+                <strong>${u.name||u.email||'–'}</strong>
               </div>
             </td>
             <td class="text-sm">${u.email}</td>
@@ -33,7 +33,12 @@ async function pageUsers(){
               <div>${u.department||'-'}</div>
             </td>
             <td class="text-xs" style="color:var(--chalk3)">${fmtDate(u.created_at,true)}</td>
-            <td><button class="btn btn-ghost btn-sm" onclick='openRoleModal(${JSON.stringify(u).replace(/'/g,"&#39;")})'>✎ เปลี่ยนสิทธิ์</button></td>
+            <td>
+              <div class="flex ic gap2">
+                <button class="btn btn-ghost btn-sm" onclick='openRoleModal(${JSON.stringify(u).replace(/'/g,"&#39;")})'>✎ สิทธิ์</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteUser('${u.id}', '${u.name||u.email}')">🗑️ ลบ</button>
+              </div>
+            </td>
           </tr>`).join('')}
         </tbody>
       </table></div>
@@ -41,7 +46,19 @@ async function pageUsers(){
   } catch(e) { c.innerHTML=`<div class="alert al-danger">❌ ${e.message}</div>`; }
 }
 
+async function deleteUser(id, name) {
+  if (id === APP.user.id) return toast('ไม่สามารถลบตัวเองได้', 'warn');
+  if (!confirm(`ยืนยันการลบผู้ใช้ "${name}" ใช่หรือไม่?\n⚠️ ข้อมูลบัญชีจะหายไปถาวร`)) return;
+
+  try {
+    const res = await apiFetch(`/users/${id}`, { method: 'DELETE' });
+    toast(res.message);
+    pageUsers(); // Reload
+  } catch (e) { toast(e.message, 'err'); }
+}
+
 function openRoleModal(u){
+  window._roleUserId = u.id;
   openModal(`<div class="modal"><div class="mh"><div class="mt">👤 จัดการสิทธิ์การใช้งาน</div><button class="mx" onclick="closeModal()">✕</button></div>
   <div class="mb2">
     <div class="alert al-info mb2">ชื่อ: <strong>${u.name}</strong><br>อีเมล: ${u.email}</div>
@@ -54,11 +71,13 @@ function openRoleModal(u){
       </select>
     </div>
   </div>
-  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doChangeRole('${u.id}')">✅ บันทึก</button></div></div>`);
+  <div class="mf"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="doChangeRole()">✅ บันทึก</button></div></div>`);
 }
 
-async function doChangeRole(id){
-  const nr=document.getElementById('ur-s').value;
+async function doChangeRole(){
+  const id = window._roleUserId;
+  const nr = document.getElementById('ur-s')?.value;
+  if(!id || !nr){ toast('เกิดข้อผิดพลาด','err'); return; }
   try {
     const res = await apiFetch(`/users/${id}/role`, { method:'PATCH', body:JSON.stringify({ role: nr }) });
     toast(res.message);

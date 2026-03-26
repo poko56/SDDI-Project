@@ -93,7 +93,8 @@ async function pageReports(){
           <div class="card-t">📊 อัตราการแก้ไขสำเร็จ & ค่าใช้จ่าย ตามประเภท</div>
           <div style="display:flex;gap:.5rem">
             <button class="btn btn-ghost btn-sm" onclick="exportCSV('cat-table','รายงานประเภทงานซ่อม')">⬇️ CSV</button>
-            <button class="btn btn-ghost btn-sm" onclick="printSection('rpt-repair','รายงานการแจ้งซ่อม')">🖨️ PDF</button>
+            <button class="btn btn-success btn-sm" onclick="exportExcel('cat-table','รายงานประเภทงานซ่อม')">📗 Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="printSection('rpt-repair','รายงานการแจ้งซ่อม')">🖨️ PDF</button>
           </div>
         </div>
         <div class="tw"><table id="cat-table">
@@ -121,7 +122,10 @@ async function pageReports(){
       <div class="card">
         <div class="card-h" style="display:flex;justify-content:space-between;align-items:center">
           <div class="card-t">📋 ประวัติงานซ่อมทั้งหมด</div>
-          <button class="btn btn-ghost btn-sm" onclick="exportCSV('req-table','ประวัติงานซ่อม')">⬇️ Export CSV</button>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-ghost btn-sm" onclick="exportCSV('req-table','ประวัติงานซ่อม')">⬇️ CSV</button>
+            <button class="btn btn-success btn-sm" onclick="exportExcel('req-table','ประวัติงานซ่อม')">📗 Excel</button>
+          </div>
         </div>
         <div class="tw"><table id="req-table">
           <thead><tr><th>รหัส</th><th>ประเภท</th><th>สถานที่</th><th>ผู้แจ้ง</th><th>ความเร่งด่วน</th><th>สถานะ</th><th>ค่าใช้จ่าย</th><th>วันที่แจ้ง</th></tr></thead>
@@ -203,7 +207,8 @@ async function pageReports(){
           <div class="card-t">📦 รายงานสต็อกคงเหลือ</div>
           <div style="display:flex;gap:.5rem">
             <button class="btn btn-ghost btn-sm" onclick="exportCSV('stock-table','รายงานสต็อกวัสดุ')">⬇️ CSV</button>
-            <button class="btn btn-ghost btn-sm" onclick="printSection('rpt-materials','รายงานคลังวัสดุ')">🖨️ PDF</button>
+            <button class="btn btn-success btn-sm" onclick="exportExcel('stock-table','รายงานสต็อกวัสดุ')">📗 Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="printSection('rpt-materials','รายงานคลังวัสดุ')">🖨️ PDF</button>
           </div>
         </div>
         <div class="tw"><table id="stock-table">
@@ -298,7 +303,8 @@ async function pageReports(){
           <div class="card-t">👷 ผลการปฏิบัติงานของช่าง</div>
           <div style="display:flex;gap:.5rem">
             <button class="btn btn-ghost btn-sm" onclick="exportCSV('tech-table','รายงานประสิทธิภาพช่าง')">⬇️ CSV</button>
-            <button class="btn btn-ghost btn-sm" onclick="printSection('rpt-perf','รายงานประสิทธิภาพ')">🖨️ PDF</button>
+            <button class="btn btn-success btn-sm" onclick="exportExcel('tech-table','รายงานประสิทธิภาพช่าง')">📗 Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="printSection('rpt-perf','รายงานประสิทธิภาพ')">🖨️ PDF</button>
           </div>
         </div>
         <div class="tw"><table id="tech-table">
@@ -336,6 +342,24 @@ function switchRptTab(btn, tab) {
   });
 }
 
+/* ─── Export Excel (.xlsx) ─── */
+function exportExcel(tableId, filename) {
+  const table = document.getElementById(tableId);
+  if(!table){ toast('ไม่พบตารางข้อมูล','err'); return; }
+  
+  // Create workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.table_to_sheet(table);
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, "Report");
+  
+  // Export file
+  const d = new Date().toLocaleDateString('th-TH').replace(/\//g,'-');
+  XLSX.writeFile(wb, `${filename}_${d}.xlsx`);
+  toast('ดาวน์โหลด Excel เรียบร้อย ✅');
+}
+
 /* ─── Export CSV ─── */
 function exportCSV(tableId, filename) {
   const table = document.getElementById(tableId);
@@ -366,11 +390,11 @@ function printSection(sectionId, title) {
       @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
       *{margin:0;padding:0;box-sizing:border-box;}
       body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;padding:1.5cm 1.8cm;background:#fff;}
-      h1{font-size:16px;margin-bottom:4px;}
-      .rpt-meta{font-size:11px;color:#666;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #1a1a2e;}
-      table{width:100%;border-collapse:collapse;margin-top:12px;}
-      th{background:#1a1a2e;color:#fff;padding:6px 8px;text-align:left;font-size:11px;}
-      td{padding:5px 8px;border-bottom:1px solid #e5e7eb;font-size:11px;vertical-align:top;}
+      h1{font-size:22px;margin-bottom:8px;color:#1a1a2e;text-align:center;}
+      .rpt-meta{font-size:12px;color:#4b5563;margin-bottom:24px;padding-bottom:12px;border-bottom:3px solid #1a1a2e;text-align:center;}
+      table{width:100%;border-collapse:collapse;margin-top:16px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+      th{background:#1a1a2e;color:#fff;padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;}
+      td{padding:8px 12px;border-bottom:1px solid #e1e7ef;font-size:11px;vertical-align:middle;color:#1f2937;}
       tr:nth-child(even) td{background:#f9fafb;}
       .badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;}
       .b-green{background:#d1fae5;color:#065f46;} .b-red{background:#fee2e2;color:#991b1b;}

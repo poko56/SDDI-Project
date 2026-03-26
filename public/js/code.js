@@ -23,6 +23,15 @@ async function apiFetch(endpoint, options = {}) {
   return data;
 }
 
+async function uploadMedia(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch('/media/upload', {
+    method: 'POST',
+    body: formData
+  });
+}
+
 function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString();}
 function isoDate(d){return d.toISOString();}
 
@@ -84,27 +93,64 @@ function openModal(html){
 function closeModal(){document.getElementById('modal-bd')?.remove();document.removeEventListener('keydown',escH);}
 function escH(e){if(e.key==='Escape')closeModal();}
 
+function previewImg(input, previewId) {
+  const el = document.getElementById(previewId);
+  const file = input.files[0];
+  if (!file) { el.innerHTML = 'ไม่ได้เลือกไฟล์'; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    el.innerHTML = `<img src="${e.target.result}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:2px solid var(--spark)">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function openImgModal(url) {
+  openModal(`<div class="modal" style="background:transparent;box-shadow:none;border:none;max-width:90vw;width:auto">
+    <div style="position:relative">
+      <button class="mx" style="position:absolute;top:-40px;right:0;background:rgba(0,0,0,0.5);color:#fff;border-radius:50%" onclick="closeModal()">✕</button>
+      <img src="${url}" style="max-width:100%;max-height:80vh;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);border:2px solid var(--wire)">
+    </div>
+  </div>`);
+}
+
 /* ═══════════════════════════════════════
    BUILD SHELL (ROLE-BASED SPA)
 ═══════════════════════════════════════ */
 async function buildShell(role){
-  const u=APP.user;
+  const token = localStorage.getItem('APP_TOKEN');
+  if(!token){ window.location.href='index.html'; return; }
+
+  // ── Always refresh user data from server (fixes stale role bug) ──────────
+  try {
+    const freshUser = await apiFetch('/auth/me');
+    APP.user = { ...APP.user, ...freshUser };
+    saveApp();
+  } catch(e) {
+    // Token expired or invalid → force re-login
+    localStorage.removeItem('APP_TOKEN');
+    localStorage.removeItem('APP_DATA');
+    window.location.href = 'index.html';
+    return;
+  }
+
+  const u = APP.user;
   if(!u){ window.location.href='index.html'; return; }
   if(u.role !== role) {
-    // Redirect to correct role shell
-    window.location.href=`${u.role}.html`; return;
+    window.location.href = `${u.role}.html`; return;
   }
-  
+
   const nav=[
-    {p:'dashboard',i:'📊',l:'ภาพรวม (Dashboard)',r:['manager','admin']},
+    {p:'dashboard',i:'📊',l:'ภาพรวม (Dashboard)',r:['user','technician','manager','admin']},
     {p:'requests-list',i:'🔧',l:'รายการแจ้งซ่อม',r:['user','technician','manager','admin']},
     {p:'request-new',i:'➕',l:'แจ้งซ่อมใหม่',r:['user','manager','admin']},
     {sec:'การจัดการ',r:['technician','manager','admin']},
     {p:'materials',i:'📦',l:'คลังวัสดุ',r:['technician','manager','admin']},
+    {p:'schedule',i:'📅',l:'ตารางงาน/เวร',r:['technician','manager','admin']},
+    {p:'purchase-orders',i:'📋',l:'ใบจัดซื้อ (PO)',r:['manager','admin']},
     {p:'reports',i:'📊',l:'รายงาน & Export',r:['manager','admin']},
     {sec:'ทั่วไป',r:['user','technician','manager','admin']},
     {p:'track',i:'🔍',l:'ติดตามงาน',r:['user','technician','manager','admin']},
-    {p:'users',i:'👥',l:'จัดการผู้ใช้',r:['admin','manager']},
+    {p:'settings',i:'⚙️',l:'ตั้งค่าระบบ',r:['admin','manager']},
     {p:'profile',i:'👤',l:'โปรไฟล์ของฉัน',r:['user','technician','manager','admin']},
   ];
   
@@ -122,20 +168,20 @@ async function buildShell(role){
         }).join('')}
       </div>
       <div class="sb-foot">
-        <div class="sb-av">${u.name[0]}</div>
-        <div><div class="sb-uname">${u.name}</div><div class="sb-urole">${roleTH(u.role)}</div></div>
+        <div class="sb-av">${(u.name||u.email||'?')[0].toUpperCase()}</div>
+        <div><div class="sb-uname">${u.name||u.email||'–'}</div><div class="sb-urole">${roleTH(u.role)}</div></div>
         <button class="sb-out" onclick="logout()" title="ออกจากระบบ">↩</button>
       </div>
     </nav>
     <div class="main">
       <header class="topbar">
-        <button class="btn btn-ghost btn-sm hidden" id="menu-btn" onclick="toggleSidebar()">☰</button>
+        <button class="menu-toggle" id="menu-btn" onclick="toggleSidebar()">☰</button>
         <div class="tb-title" id="page-title">ระบบแจ้งซ่อม</div>
         <div class="tb-actions">
           <div class="icon-btn" onclick="toggleNotif()" id="notif-btn" title="การแจ้งเตือน">🔔</div>
           <div class="user-chip">
-            <div style="width:22px;height:22px;background:linear-gradient(135deg,var(--spark2),var(--violet));border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;flex-shrink:0">${u.name[0]}</div>
-            <span>${u.name.split(' ')[0]}</span>
+            <div style="width:22px;height:22px;background:linear-gradient(135deg,var(--spark2),var(--violet));border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;flex-shrink:0">${(u.name||u.email||'?')[0].toUpperCase()}</div>
+            <span>${(u.name||u.email||'').split(' ')[0]}</span>
           </div>
         </div>
       </header>
@@ -158,7 +204,9 @@ async function buildShell(role){
   } catch(e) { console.error('Failed to load notifications', e); }
 }
 
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
+function toggleSidebar() {
+  document.getElementById('sidebar')?.classList.toggle('open');
+}
 
 /* ═══════════════════════════════════════
    SPA NAVIGATION
@@ -179,7 +227,7 @@ function renderCurrentPage() {
   
   let vp = new URLSearchParams(window.location.search).get('view');
   if(!vp) {
-    vp = u.role === 'user' ? 'requests-list' : u.role === 'technician' ? 'requests-list' : 'dashboard';
+    vp = 'dashboard';
     let url=new URL(window.location);url.searchParams.set('view',vp);
     window.history.replaceState(null,'',url.toString());
   }
@@ -190,7 +238,7 @@ function renderCurrentPage() {
   if(l)l.classList.add('on');
   if(window.innerWidth<=900)document.getElementById('sidebar')?.classList.remove('open');
 
-  const titles={dashboard:'📊 ภาพรวมระบบ','requests-list':'🔧 รายการแจ้งซ่อม','request-new':'➕ แจ้งซ่อมใหม่','request-detail':'📋 รายละเอียดงานซ่อม',materials:'📦 คลังวัสดุ',reports:'📊 รายงาน & Export',users:'👥 จัดการผู้ใช้',track:'🔍 ติดตามงาน',profile:'👤 โปรไฟล์'};
+  const titles={dashboard:'📊 ภาพรวมระบบ','requests-list':'🔧 รายการแจ้งซ่อม','request-new':'➕ แจ้งซ่อมใหม่','request-detail':'📋 รายละเอียดงานซ่อม',materials:'📦 คลังวัสดุ',schedule:'📅 ตารางงาน & เวรฉุกเฉิน','purchase-orders':'📋 ใบจัดซื้อ (PO)',reports:'📊 รายงาน & Export',users:'👥 จัดการผู้ใช้','system-log':'📋 บันทึกกิจกรรมระบบ','notif-settings':'🔔 ตั้งค่าแจ้งเตือน',settings:'⚙️ ตั้งค่าระบบ',track:'🔍 ติดตามงาน',profile:'👤 โปรไฟล์'};
   const tEl=document.getElementById('page-title');
   if(tEl) tEl.textContent=titles[vp]||'ระบบแจ้งซ่อม';
 
@@ -203,8 +251,13 @@ function renderCurrentPage() {
     pageRequestDetail(id);
   }
   else if(vp==='materials' && typeof pageMaterials==='function') pageMaterials();
+  else if(vp==='schedule' && typeof pageSchedule==='function') pageSchedule();
+  else if(vp==='purchase-orders' && typeof pagePurchaseOrders==='function') pagePurchaseOrders();
   else if(vp==='reports' && typeof pageReports==='function') pageReports();
   else if(vp==='users' && typeof pageUsers==='function') pageUsers();
+  else if(vp==='system-log' && typeof pageSystemLog==='function') pageSystemLog();
+  else if(vp==='notif-settings' && typeof pageNotifSettings==='function') pageNotifSettings();
+  else if(vp==='settings' && typeof pageSettings==='function') pageSettings();
   else if(vp==='track' && typeof pageTrack==='function') pageTrack();
   else if(vp==='profile' && typeof pageProfile==='function') pageProfile();
   else {

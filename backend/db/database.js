@@ -47,4 +47,6 @@ async function seedData() {
   console.log('✅ Firestore seeding completed.');
 }
 
-module.exports = { db, admin, FieldValue, Timestamp, seedData };
+const bucket = admin.storage().bucket();
+
+module.exports = { db, admin, storage: admin.storage(), bucket, FieldValue, Timestamp, seedData };
